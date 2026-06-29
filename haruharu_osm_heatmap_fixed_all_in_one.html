@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>하루하루 - Todo, Note, 서울 하늘, 더위 지도 & 환율 계산기</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQmnrx9fOjRWOLhvxI4okC3sKtbcEj0=" crossorigin="" />
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+    :root {
+      --cream: #fdfbf7;
+      --paper: #fcfaf2;
+      --warm: #faf6ee;
+      --yellow: #fef9e7;
+      --bright: #fde183;
+      --bright-strong: #fcd863;
+      --accent: #e67e22;
+      --dark: #4a3b32;
+      --gray: #6b7280;
+      --line: rgba(234, 179, 8, 0.22);
+      --white: #ffffff;
+      --green: #e8f5e9;
+      --red: #fee2e2;
+      --blue: #e0f2fe;
+      --shadow: 0 18px 45px rgba(74, 59, 50, 0.13);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: var(--warm);
+      color: var(--dark);
+    }
+
+    button, input, textarea { font-family: inherit; }
+    button { cursor: pointer; border: 0; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--cream); }
+    ::-webkit-scrollbar-thumb { background: #eedc82; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #d4af37; }
+
+    .app {
+      width: min(1180px, 100%);
+      min-height: 750px;
+      background: var(--paper);
+      border: 1px solid rgba(234, 179, 8, 0.28);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .rings-bar {
+      height: 16px;
+      background: #f5efcf;
+      border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+      display: flex;
+      justify-content: space-around;
+      padding: 0 36px;
+      position: relative;
+    }
+    .ring {
+      width: 8px;
+      height: 24px;
+      margin-top: 4px;
+      border-radius: 99px;
+      background: linear-gradient(to bottom, #9e9e9e 0%, #e0e0e0 50%, #9e9e9e 100%);
+      box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2), 1px 1px 2px rgba(0,0,0,0.15);
+    }
+
+    .header {
+      padding: 22px 24px;
+      border-bottom: 1px solid rgba(234, 179, 8, 0.18);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .brand { display: flex; gap: 12px; align-items: center; }
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 18px;
+      background: var(--bright);
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      box-shadow: 0 2px 8px rgba(234, 179, 8, 0.22);
+    }
+    .brand h1 { margin: 0; font-size: 20px; letter-spacing: -0.03em; }
+    .brand p { margin: 4px 0 0; color: var(--gray); font-size: 12px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #fff4c2;
+      color: #8a5a09;
+      font-size: 12px;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+
+    .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .segmented {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 14px;
+      background: rgba(254, 243, 199, 0.55);
+      border: 1px solid rgba(234, 179, 8, 0.18);
+    }
+    .segmented button, .nav button, .mini-button {
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: #6b4d0c;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 700;
+      transition: 0.18s ease;
+    }
+    .segmented button.active, .mini-button.primary {
+      background: var(--bright);
+      color: var(--dark);
+      box-shadow: 0 2px 7px rgba(234, 179, 8, 0.22);
+    }
+    .nav { display: flex; align-items: center; gap: 6px; }
+    .nav button, .mini-button { background: #fff; border: 1px solid rgba(234, 179, 8, 0.18); }
+    .nav button:hover, .segmented button:hover, .mini-button:hover { background: #fff7d6; }
+    #calendar-title { min-width: 112px; text-align: center; font-size: 17px; font-weight: 800; }
+
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 7fr) minmax(360px, 5fr);
+      min-height: 0;
+    }
+    .left, .right { min-width: 0; }
+    .left {
+      padding: 24px;
+      border-right: 1px solid rgba(234, 179, 8, 0.2);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+    .weekdays { margin-bottom: 12px; text-align: center; color: rgba(107, 114, 128, 0.85); font-weight: 800; font-size: 12px; }
+    .sun { color: #ef4444; }
+    .sat { color: #3b82f6; }
+    .calendar-grid { min-height: 350px; }
+    .date-cell {
+      min-height: 78px;
+      padding: 10px 8px;
+      background: white;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      transition: 0.16s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      border: 1px solid transparent;
+    }
+    .date-cell:hover { background: #fff9dc; transform: translateY(-1px); }
+    .date-cell.other { opacity: 0.38; }
+    .date-cell.today { background: rgba(254, 243, 199, 0.65); border-color: rgba(245, 158, 11, 0.35); }
+    .date-cell.selected { background: var(--yellow); border: 2px solid #f59e0b; }
+    .date-number { font-size: 14px; font-weight: 900; }
+    .todo-indicator {
+      margin-top: 8px;
+      padding: 3px 7px;
+      border-radius: 9px;
+      font-size: 10px;
+      font-weight: 900;
+      background: var(--bright);
+      border: 1px solid rgba(234, 179, 8, 0.45);
+      color: #754a06;
+    }
+    .todo-indicator.done { background: var(--green); color: #2e7d32; border-color: #c3e6cb; }
+    .week-view .date-cell { min-height: 190px; padding-top: 22px; }
+    .table-placeholder {
+      min-height: 350px;
+      border-radius: 22px;
+      background: #fff;
+      border: 1px solid rgba(234, 179, 8, 0.18);
+      display: grid;
+      place-items: center;
+      color: var(--gray);
+      font-size: 13px;
+    }
+    .legend {
+      border-top: 1px solid rgba(234, 179, 8, 0.18);
+      padding-top: 16px;
+      color: var(--gray);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 12px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 5px; }
+
+    .right { background: var(--warm); display: flex; flex-direction: column; min-height: 0; }
+    .tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid rgba(234, 179, 8, 0.24); background: rgba(254, 243, 199, 0.28); }
+    .right-tab {
+      min-height: 54px;
+      padding: 8px 6px;
+      background: transparent;
+      color: var(--gray);
+      font-size: 13px;
+      font-weight: 800;
+      border-bottom: 3px solid transparent;
+      transition: 0.18s ease;
+    }
+    .right-tab:hover { background: rgba(254, 249, 231, 0.85); color: var(--dark); }
+    .right-tab.active { background: var(--warm); color: var(--dark); border-bottom-color: #f59e0b; }
+    .right-header { padding: 18px 20px 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .right-header h2 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+    .progress { padding: 5px 10px; border-radius: 999px; background: #fff5cc; border: 1px solid rgba(234, 179, 8, 0.24); color: #8a5a09; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .panel { padding: 12px 20px 20px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .panel.hidden, .hidden { display: none !important; }
+
+    .todo-form { display: flex; gap: 8px; margin-bottom: 14px; }
+    input, textarea {
+      width: 100%;
+      border: 1px solid rgba(234, 179, 8, 0.28);
+      background: white;
+      border-radius: 14px;
+      padding: 11px 13px;
+      color: var(--dark);
+      outline: 0;
+    }
+    input:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(253, 225, 131, 0.45); }
+    .submit-btn { padding: 0 18px; border-radius: 14px; background: var(--bright); color: var(--dark); font-weight: 900; }
+    .todo-list { overflow-y: auto; max-height: 390px; display: flex; flex-direction: column; gap: 10px; }
+    .todo-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px; border-radius: 14px; background: #fff; border: 1px solid rgba(234, 179, 8, 0.18); }
+    .todo-item label { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; }
+    .todo-item input { width: auto; }
+    .todo-item.completed span { text-decoration: line-through; color: #9ca3af; }
+    .delete-btn { background: transparent; color: #ef9a9a; font-size: 16px; padding: 4px; }
+    .empty { flex: 1; min-height: 260px; display: grid; place-items: center; text-align: center; color: var(--gray); font-size: 13px; }
+
+    .note-field { margin-bottom: 12px; }
+    .label { display: block; margin: 0 0 6px; color: rgba(120, 72, 9, 0.86); font-size: 11px; font-weight: 900; letter-spacing: 0.03em; }
+    textarea { flex: 1; min-height: 290px; resize: none; line-height: 1.7; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+    .note-footer { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--gray); font-size: 11px; }
+    .danger { background: #fff1f2; color: #b91c1c; border: 1px solid #fecdd3; border-radius: 10px; padding: 8px 10px; font-weight: 800; }
+
+    .weather-panel { gap: 12px; overflow-y: auto; }
+    .weather-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .weather-title h2 { margin: 0 0 5px; font-size: 17px; }
+    .weather-title p { margin: 0; color: var(--gray); font-size: 12px; line-height: 1.5; }
+    .weather-status { font-size: 11px; color: var(--gray); text-align: right; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .summary-card, .weather-card, .map-box, .notice-box {
+      background: #fff;
+      border: 1px solid rgba(234, 179, 8, 0.18);
+      border-radius: 18px;
+      box-shadow: 0 2px 10px rgba(74,59,50,0.04);
+    }
+    .summary-card { padding: 12px; }
+    .summary-card small { display: block; color: var(--gray); font-size: 10px; font-weight: 800; }
+    .summary-card strong { display: block; margin-top: 6px; font-size: 18px; }
+    .map-box { position: relative; min-height: 260px; overflow: hidden; padding: 14px; background: linear-gradient(145deg, #fffef8, #eaf7ff); }
+    .map-shape {
+      position: absolute; inset: 30px 38px 28px 42px;
+      border-radius: 46% 54% 42% 58% / 44% 42% 58% 56%;
+      background: rgba(253, 225, 131, 0.38);
+      border: 2px dashed rgba(230, 126, 34, 0.25);
+    }
+    .map-label { position: relative; z-index: 2; font-size: 12px; font-weight: 900; color: rgba(74,59,50,0.72); }
+    .map-pin {
+      position: absolute;
+      z-index: 3;
+      transform: translate(-50%, -50%);
+      min-width: 64px;
+      padding: 6px 7px;
+      border-radius: 13px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(234, 179, 8, 0.25);
+      box-shadow: 0 4px 14px rgba(74,59,50,0.12);
+      text-align: center;
+      font-size: 10px;
+      line-height: 1.25;
+    }
+    .map-pin button { background: transparent; color: inherit; padding: 0; width: 100%; }
+    .osm-map-card { padding: 12px; min-height: 420px; background: linear-gradient(145deg, #fffef8, #eef9ff); }
+    .map-toolbar { position: relative; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .map-toolbar-title { font-size: 12px; font-weight: 950; color: rgba(74,59,50,0.82); }
+    .map-toolbar-title small { display: block; margin-top: 3px; color: var(--gray); font-size: 10px; font-weight: 700; }
+    .map-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .map-chip { border: 1px solid rgba(234, 179, 8, 0.28); background: #fffaf0; color: var(--dark); border-radius: 999px; padding: 7px 9px; font-size: 10px; font-weight: 900; }
+    .map-chip.active { background: var(--bright); border-color: rgba(180, 83, 9, 0.32); }
+    .osm-heat-map { width: 100%; height: 325px; border-radius: 18px; overflow: hidden; border: 1px solid rgba(234,179,8,0.25); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.4); background: #e0f2fe; }
+    .heat-legend { margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.85); border: 1px solid rgba(234,179,8,0.18); border-radius: 14px; font-size: 10px; color: var(--gray); }
+    .heat-legend-bar { height: 10px; border-radius: 999px; margin: 7px 0; background: linear-gradient(90deg, #60a5fa, #34d399, #facc15, #fb923c, #ef4444); }
+    .heat-legend-row { display: flex; justify-content: space-between; gap: 8px; }
+    .leaflet-container { font-family: 'Pretendard', sans-serif; }
+    .heat-marker { min-width: 82px; text-align: center; }
+    .heat-marker strong { display: block; font-size: 13px; color: var(--dark); }
+    .heat-marker span { display: block; margin-top: 3px; font-size: 11px; color: #b45309; font-weight: 900; }
+    .heat-marker small { display: block; margin-top: 3px; color: var(--gray); }
+
+    .pin-name { font-weight: 900; display: block; }
+    .pin-temp { color: #b45309; font-weight: 900; }
+    .weather-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .weather-card { padding: 13px; }
+    .weather-card.active { outline: 3px solid rgba(253, 225, 131, 0.7); }
+    .weather-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .weather-card h3 { margin: 0; font-size: 14px; }
+    .condition { color: var(--gray); font-size: 11px; margin-top: 3px; }
+    .temp { font-size: 22px; font-weight: 950; color: #b45309; }
+    .metric-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+    .metric { background: #fffaf0; border-radius: 12px; padding: 7px 6px; text-align: center; }
+    .metric small { display: block; color: var(--gray); font-size: 9px; font-weight: 900; }
+    .metric strong { display: block; margin-top: 3px; font-size: 12px; }
+    .air-good { color: #047857; }
+    .air-normal { color: #b45309; }
+    .air-bad { color: #dc2626; }
+    .notice-box { padding: 12px; background: #fff7ed; color: #9a3412; font-size: 12px; line-height: 1.5; }
+    .loading { opacity: 0.72; }
+
+    .modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.42); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; z-index: 100; padding: 18px;
+    }
+    .modal.hidden { display: none; }
+    .modal-box { width: min(520px, 100%); background: #fff; border-radius: 26px; padding: 22px; box-shadow: 0 30px 70px rgba(0,0,0,0.25); }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(234,179,8,0.2); padding-bottom: 12px; margin-bottom: 14px; }
+    .modal-head h3 { margin: 0; }
+    .modal-section { padding: 14px; border-radius: 18px; border: 1px solid rgba(234,179,8,0.18); background: #fffbeb; margin-top: 10px; }
+    .two-col { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) scale(0.92);
+      background: var(--dark); color: white; border-radius: 999px; padding: 11px 18px;
+      font-size: 12px; font-weight: 800; opacity: 0; pointer-events: none; transition: 0.22s ease; z-index: 200;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) scale(1); }
+
+    @media (max-width: 920px) {
+      body { padding: 12px; }
+      .main { grid-template-columns: 1fr; }
+      .left { border-right: 0; border-bottom: 1px solid rgba(234,179,8,0.2); }
+      .weather-list { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .osm-heat-map { height: 300px; }
+    }
+    @media (max-width: 560px) {
+      .header { padding: 18px; }
+      .left, .panel { padding: 16px; }
+      .right-header { padding-left: 16px; padding-right: 16px; }
+      .tabs { grid-template-columns: 1fr; }
+      .calendar-grid, .weekdays { gap: 5px; }
+      .date-cell { border-radius: 14px; min-height: 64px; padding: 8px 4px; }
+      .toolbar { width: 100%; }
+      .segmented, .nav { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="rings-bar"><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span></div>
+
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">📅</div>
+        <div>
+          <h1>하루하루 <span class="badge">Todo & Note & Weather & FX</span></h1>
+          <p>나의 일과, 배움의 기록, 서울의 하늘과 날짜별 환율</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="segmented" aria-label="달력 보기 방식">
+          <button id="btn-month-view" type="button" data-view="month">한달 뷰</button>
+          <button id="btn-week-view" type="button" data-view="week">일주일 뷰</button>
+        </div>
+        <div class="segmented" aria-label="레이아웃 방식">
+          <button id="btn-layout-grid" type="button" data-layout="grid">달력</button>
+          <button id="btn-layout-table" type="button" data-layout="table">표 형식</button>
+        </div>
+        <div class="nav">
+          <button id="prev-btn" type="button">‹</button>
+          <button id="today-btn" type="button">오늘</button>
+          <button id="next-btn" type="button">›</button>
+          <span id="calendar-title"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="left">
+        <div>
+          <div id="calendar-weekdays" class="weekdays"><span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span></div>
+          <div id="calendar-viewport"></div>
+        </div>
+        <div class="legend">
+          <div><span class="dot" style="background: var(--bright)"></span>진행 중 할 일 <span class="dot" style="background: #d4edda; margin-left: 12px;"></span>모두 완료함</div>
+          <button id="open-data-modal" type="button" class="mini-button">📥 CSV 백업 / 복원</button>
+        </div>
+      </section>
+
+      <section class="right">
+        <div class="tabs">
+          <button type="button" class="right-tab active" data-tab="todo">☑️ 할 일</button>
+          <button type="button" class="right-tab" data-tab="note">📒 필기노트</button>
+          <button type="button" class="right-tab" data-tab="weather">🌤️ 서울 하늘</button>
+          <button type="button" class="right-tab" data-tab="exchange">💱 환율 계산기</button>
+        </div>
+
+        <div id="right-header" class="right-header">
+          <h2 id="todo-date-title"></h2>
+          <span id="todo-progress-badge" class="progress">0% 완료</span>
+        </div>
+
+        <div id="panel-todo" class="panel" data-panel="todo">
+          <form id="todo-form" class="todo-form">
+            <input id="todo-input" type="text" maxlength="50" placeholder="새로운 다짐이나 할 일 입력하기..." />
+            <button class="submit-btn" type="submit">등록</button>
+          </form>
+          <div id="todo-list-container" class="todo-list"></div>
+          <div id="todo-empty-state" class="empty hidden"><div><strong>이날은 등록된 할 일이 없어요</strong><br />가볍게 오늘의 계획을 적어보세요.</div></div>
+        </div>
+
+        <div id="panel-note" class="panel hidden" data-panel="note">
+          <div class="note-field">
+            <label class="label" for="note-subject">오늘의 과목 / 단원 요약</label>
+            <input id="note-subject" type="text" placeholder="예: [AI 가이드] 머신러닝 데이터 분석 실습 1강" />
+          </div>
+          <label class="label" for="note-content">핵심 필기 노트</label>
+          <textarea id="note-content" placeholder="오늘 수업에서 배운 핵심 키워드, 코드 스니펫, 질문 사항 등을 자유롭게 필기하세요. 작성하는 즉시 자동 저장됩니다."></textarea>
+          <div class="note-footer">
+            <span id="note-status-text">☁️ 실시간 자동 저장됨</span>
+            <button id="clear-note-btn" type="button" class="danger">전체 비우기</button>
+          </div>
+        </div>
+
+        <div id="panel-weather" class="panel hidden weather-panel" data-panel="weather">
+          <div class="weather-top">
+            <div class="weather-title">
+              <h2>🌤️ 서울 하늘</h2>
+              <p>서울 주요 동네의 실시간 날씨, 기온, 미세먼지를 Open-Meteo API로 확인하고 OpenStreetMap 기반 더위 지도로 시각화합니다. 5분마다 자동 갱신됩니다.</p>
+            </div>
+            <div>
+              <button id="weather-refresh-btn" type="button" class="mini-button primary">새로고침</button>
+              <div id="weather-updated" class="weather-status">아직 갱신 전</div>
+            </div>
+          </div>
+
+          <div id="weather-error" class="notice-box hidden"></div>
+
+          <div class="summary-grid">
+            <div class="summary-card"><small>평균 기온</small><strong id="summary-temp">-</strong></div>
+            <div class="summary-card"><small>평균 PM2.5</small><strong id="summary-pm25">-</strong></div>
+            <div class="summary-card"><small>대기 상태</small><strong id="summary-air">-</strong></div>
+          </div>
+
+          <div class="map-box osm-map-card" id="seoul-map-card">
+            <div class="map-toolbar">
+              <div class="map-toolbar-title">🗺️ OpenStreetMap 서울 더위 지도<small>동네별 현재 기온을 열 밀도와 원형 마커로 표시합니다.</small></div>
+              <div class="map-actions">
+                <button type="button" class="map-chip active" data-heat-mode="temperature">기온</button>
+                <button type="button" class="map-chip" data-heat-mode="pm25">PM2.5</button>
+                <button type="button" class="map-chip" id="map-fit-btn">서울 전체</button>
+              </div>
+            </div>
+            <div id="seoul-heat-map" class="osm-heat-map" aria-label="OpenStreetMap 기반 서울 더위 지도"></div>
+            <div class="heat-legend">
+              <div id="heat-legend-title">기온이 높을수록 붉게 표시됩니다.</div>
+              <div class="heat-legend-bar"></div>
+              <div class="heat-legend-row"><span>낮음</span><span>중간</span><span>높음</span></div>
+            </div>
+            <div id="map-pins" class="hidden"></div>
+          </div>
+
+          <div id="weather-list" class="weather-list"></div>
+        </div>
+
+        <div id="panel-exchange" class="panel hidden exchange-panel" data-panel="exchange">
+          <div class="exchange-top">
+            <div class="exchange-title">
+              <h2>💱 날짜별 환율 계산기</h2>
+              <p>한국수출입은행 환율 데이터를 사용해 KRW와 달러·엔화·위안화·유로를 날짜별로 비교하고 계산합니다.</p>
+            </div>
+            <div class="exchange-actions">
+              <button id="exchange-load-btn" type="button" class="mini-button primary">환율 조회</button>
+            </div>
+          </div>
+
+          <div id="exchange-error" class="notice-box hidden"></div>
+
+          <div class="exchange-grid">
+            <div class="exchange-form-card full">
+              <div class="exchange-field">
+                <label for="exchange-api-key">한국수출입은행 API KEY</label>
+                <div class="api-key-line">
+                  <input id="exchange-api-key" type="password" autocomplete="off" placeholder="발급받은 API KEY를 입력하세요" />
+                  <button id="exchange-save-key-btn" type="button" class="mini-button">키 저장</button>
+                  <button id="exchange-clear-key-btn" type="button" class="mini-button">삭제</button>
+                </div>
+                <div class="exchange-note">API KEY는 브라우저 localStorage에만 저장됩니다. 공휴일·주말·은행 비영업일에는 해당 날짜 데이터가 비어 있을 수 있습니다.</div>
+              </div>
+            </div>
+
+            <div class="exchange-form-card">
+              <div class="exchange-row">
+                <div class="exchange-field"><label for="exchange-date-a">비교 날짜 A</label><input id="exchange-date-a" type="date" /></div>
+                <div class="exchange-field"><label for="exchange-date-b">비교 날짜 B</label><input id="exchange-date-b" type="date" /></div>
+              </div>
+              <div class="exchange-row">
+                <div class="exchange-field"><label for="exchange-from">보내는 통화</label><select id="exchange-from"></select></div>
+                <div class="exchange-field"><label for="exchange-to">받는 통화</label><select id="exchange-to"></select></div>
+              </div>
+              <div class="exchange-field"><label for="exchange-amount">금액</label><input id="exchange-amount" type="number" min="0" step="0.01" value="100000" /></div>
+              <div class="exchange-actions">
+                <button id="exchange-swap-btn" type="button" class="mini-button">통화 바꾸기</button>
+                <button id="exchange-reset-btn" type="button" class="mini-button">오늘 기준</button>
+              </div>
+            </div>
+
+            <div class="exchange-card">
+              <div class="exchange-note"><strong>지원 통화</strong><br />KRW 원화, USD 달러, JPY 엔화, CNH/CNY 위안화, EUR 유로<br /><br />엔화는 한국수출입은행 고시 데이터의 JPY(100) 값을 1엔 기준으로 자동 환산합니다.</div>
+            </div>
+
+            <div class="exchange-form-card full">
+              <div class="rate-result-grid">
+                <div class="rate-result-card"><small id="result-date-a-label">날짜 A 결과</small><strong id="exchange-result-a">-</strong><div id="exchange-result-a-sub" class="muted">환율 조회 후 표시됩니다.</div></div>
+                <div class="rate-result-card"><small id="result-date-b-label">날짜 B 결과</small><strong id="exchange-result-b">-</strong><div id="exchange-result-b-sub" class="muted">환율 조회 후 표시됩니다.</div></div>
+              </div>
+            </div>
+
+            <div class="exchange-form-card full">
+              <table class="rate-table" aria-label="날짜별 환율 비교표">
+                <thead><tr><th>통화</th><th id="rate-head-a">날짜 A</th><th id="rate-head-b">날짜 B</th><th>차이</th></tr></thead>
+                <tbody id="exchange-rate-table"><tr><td colspan="4" style="text-align:center;color:var(--gray);">환율 조회 버튼을 눌러 주세요.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="data-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="CSV 백업 및 복원">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>CSV 백업 및 데이터 관리</h3>
+        <button id="close-data-modal" type="button" class="mini-button">닫기</button>
+      </div>
+      <div class="modal-section">
+        <div class="two-col">
+          <div><label class="label" for="export-start">시작 날짜</label><input id="export-start" type="date" /></div>
+          <div><label class="label" for="export-end">종료 날짜</label><input id="export-end" type="date" /></div>
+        </div>
+        <button id="export-btn" type="button" class="mini-button primary" style="width: 100%;">CSV 다운로드</button>
+      </div>
+      <div class="modal-section">
+        <input id="import-file" type="file" accept=".csv" />
+        <div style="margin: 10px 0; font-size: 13px;"><label><input type="radio" name="import-mode" value="merge" checked /> 병합</label> &nbsp; <label><input type="radio" name="import-mode" value="overwrite" /> 덮어쓰기</label></div>
+        <button id="import-btn" type="button" class="mini-button" style="width: 100%;">CSV 가져오기 실행</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">저장되었습니다.</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script>
+    'use strict';
+
+    let currentDate = new Date();
+    let selectedDate = new Date();
+    let viewMode = 'month';
+    let layoutMode = 'grid';
+    let activeTab = 'todo';
+    let saveTimeout = null;
+    let weatherTimer = null;
+    let selectedNeighborhood = '종로';
+    let weatherDataset = [];
+    let exchangeCache = {};
+    let seoulLeafletMap = null;
+    let seoulHeatLayer = null;
+    let seoulMarkerLayer = null;
+    let heatMapMode = 'temperature';
+
+    const todayKey = formatDateKey(new Date());
+    let todos = loadJson('haruharu_todos', {
+      [todayKey]: [
+        { id: '1', text: '파스텔 Todo List 앱 완성하기', completed: true },
+        { id: '2', text: '매일 물 2리터 마시기 실천 💧', completed: false }
+      ]
+    });
+    let noteDataset = loadJson('haruharu_notes', {});
+
+    const seoulNeighborhoods = [
+      { name: '종로', lat: 37.5729, lon: 126.9794, x: 50, y: 37 },
+      { name: '강남', lat: 37.4979, lon: 127.0276, x: 63, y: 70 },
+      { name: '홍대', lat: 37.5575, lon: 126.9250, x: 27, y: 47 },
+      { name: '여의도', lat: 37.5267, lon: 126.9250, x: 31, y: 61 },
+      { name: '잠실', lat: 37.5133, lon: 127.1028, x: 82, y: 63 },
+      { name: '성수', lat: 37.5446, lon: 127.0557, x: 68, y: 50 },
+      { name: '노원', lat: 37.6542, lon: 127.0568, x: 69, y: 18 },
+      { name: '마포', lat: 37.5663, lon: 126.9019, x: 22, y: 42 }
+    ];
+
+    const exchangeCurrencies = [
+      { code: 'KRW', label: 'KRW 원화', unit: '원' },
+      { code: 'USD', label: 'USD 달러', unit: '달러' },
+      { code: 'JPY', label: 'JPY 엔화', unit: '엔' },
+      { code: 'CNY', label: 'CNY 위안화', unit: '위안' },
+      { code: 'EUR', label: 'EUR 유로', unit: '유로' }
+    ];
+
+    document.addEventListener('DOMContentLoaded', initApp);
+
+    function initApp() {
+      setDefaultExportDates();
+      bindEvents();
+      initExchangeModule();
+      renderApp();
+      switchRightTab('todo');
+    }
+
+    function bindEvents() {
+      document.querySelectorAll('[data-view]').forEach(btn => btn.addEventListener('click', () => changeViewMode(btn.dataset.view)));
+      document.querySelectorAll('[data-layout]').forEach(btn => btn.addEventListener('click', () => changeLayoutMode(btn.dataset.layout)));
+      document.getElementById('prev-btn').addEventListener('click', () => navigateCalendar(-1));
+      document.getElementById('next-btn').addEventListener('click', () => navigateCalendar(1));
+      document.getElementById('today-btn').addEventListener('click', goToToday);
+      document.getElementById('todo-form').addEventListener('submit', addTodo);
+      document.getElementById('note-subject').addEventListener('input', autoSaveNoteWithDebounce);
+      document.getElementById('note-content').addEventListener('input', autoSaveNoteWithDebounce);
+      document.getElementById('clear-note-btn').addEventListener('click', clearCurrentNote);
+      document.getElementById('open-data-modal').addEventListener('click', openDataModal);
+      document.getElementById('close-data-modal').addEventListener('click', closeDataModal);
+      document.getElementById('export-btn').addEventListener('click', triggerExport);
+      document.getElementById('import-btn').addEventListener('click', triggerImport);
+      document.getElementById('weather-refresh-btn').addEventListener('click', () => refreshSeoulWeather(true));
+      bindHeatMapControls();
+      bindExchangeEvents();
+
+      document.querySelectorAll('[data-tab]').forEach(btn => {
+        btn.addEventListener('click', function () {
+          switchRightTab(this.dataset.tab);
+        });
+      });
+    }
+
+    function switchRightTab(tabName) {
+      const nextTab = ['todo', 'note', 'weather', 'exchange'].includes(tabName) ? tabName : 'todo';
+      activeTab = nextTab;
+
+      document.querySelectorAll('[data-tab]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === nextTab);
+      });
+      document.querySelectorAll('[data-panel]').forEach(panel => {
+        panel.classList.toggle('hidden', panel.dataset.panel !== nextTab);
+      });
+
+      const rightHeader = document.getElementById('right-header');
+      rightHeader.classList.toggle('hidden', nextTab === 'weather' || nextTab === 'exchange');
+
+      if (nextTab === 'note') loadNoteForSelectedDate();
+      if (nextTab === 'weather') {
+        setTimeout(() => { ensureSeoulHeatMap(); if (seoulLeafletMap) seoulLeafletMap.invalidateSize(); renderSeoulHeatMap(); }, 80);
+        if (!weatherDataset.length) refreshSeoulWeather(true);
+        startWeatherAutoRefresh();
+      } else {
+        stopWeatherAutoRefresh();
+      }
+      if (nextTab === 'exchange') {
+        renderExchangeCachedResult();
+      }
+    }
+
+    function formatDateKey(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    function getKoreanDayName(dateObj) { return ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'][dateObj.getDay()]; }
+    function isSameDate(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+    function getStartOfWeek(date) { const d = new Date(date); d.setDate(d.getDate() - d.getDay()); return d; }
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
+    }
+    function loadJson(key, fallback) { try { const value = localStorage.getItem(key); return value ? JSON.parse(value) : fallback; } catch (e) { return fallback; } }
+    function saveTodos() { localStorage.setItem('haruharu_todos', JSON.stringify(todos)); }
+
+    function setDefaultExportDates() {
+      const now = new Date();
+      document.getElementById('export-start').value = formatDateKey(new Date(now.getFullYear(), now.getMonth(), 1));
+      document.getElementById('export-end').value = formatDateKey(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    }
+
+    function renderApp() {
+      renderHeader();
+      renderCalendar();
+      renderTodoList();
+      updateToolbarButtons();
+      if (activeTab === 'note') loadNoteForSelectedDate();
+    }
+
+    function updateToolbarButtons() {
+      document.querySelectorAll('[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewMode));
+      document.querySelectorAll('[data-layout]').forEach(btn => btn.classList.toggle('active', btn.dataset.layout === layoutMode));
+    }
+
+    function renderHeader() {
+      const title = document.getElementById('calendar-title');
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      if (viewMode === 'month') title.textContent = `${year}년 ${month}월`;
+      else {
+        const start = getStartOfWeek(currentDate);
+        title.textContent = `${start.getFullYear()}년 ${String(start.getMonth() + 1).padStart(2, '0')}월`;
+      }
+    }
+
+    function renderCalendar() {
+      const viewport = document.getElementById('calendar-viewport');
+      const weekdays = document.getElementById('calendar-weekdays');
+      viewport.innerHTML = '';
+      if (layoutMode === 'table') {
+        weekdays.classList.add('hidden');
+        const box = document.createElement('div');
+        box.className = 'table-placeholder';
+        box.textContent = '표 형식 목록이 제공됩니다.';
+        viewport.appendChild(box);
+        return;
+      }
+      weekdays.classList.remove('hidden');
+      const grid = document.createElement('div');
+      grid.className = 'calendar-grid';
+      if (viewMode === 'week') grid.classList.add('week-view');
+      viewport.appendChild(grid);
+      if (viewMode === 'month') buildMonthGrid(grid);
+      else buildWeekGrid(grid);
+    }
+
+    function buildMonthGrid(grid) {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const first = new Date(year, month, 1);
+      const last = new Date(year, month + 1, 0);
+      const startIndex = first.getDay();
+      const totalDays = last.getDate();
+      const prevLast = new Date(year, month, 0).getDate();
+      for (let i = startIndex - 1; i >= 0; i--) grid.appendChild(createDateCell(new Date(year, month - 1, prevLast - i), false));
+      for (let day = 1; day <= totalDays; day++) grid.appendChild(createDateCell(new Date(year, month, day), true));
+      const rendered = startIndex + totalDays;
+      const remain = rendered % 7;
+      const fill = remain === 0 ? 0 : 7 - remain;
+      const total = rendered + fill <= 35 ? rendered + fill + 7 : rendered + fill;
+      for (let day = 1; day <= total - rendered; day++) grid.appendChild(createDateCell(new Date(year, month + 1, day), false));
+    }
+
+    function buildWeekGrid(grid) {
+      const start = getStartOfWeek(currentDate);
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        grid.appendChild(createDateCell(d, true, true));
+      }
+    }
+
+    function createDateCell(dateObj, isCurrentMonth, isWeekView) {
+      const key = formatDateKey(dateObj);
+      const list = todos[key] || [];
+      const completed = list.filter(item => item.completed).length;
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'date-cell';
+      if (!isCurrentMonth) cell.classList.add('other');
+      if (isSameDate(dateObj, new Date())) cell.classList.add('today');
+      if (isSameDate(dateObj, selectedDate)) cell.classList.add('selected');
+      const dayClass = dateObj.getDay() === 0 ? 'sun' : dateObj.getDay() === 6 ? 'sat' : '';
+      const weekday = isWeekView ? `<div style="font-size:10px;font-weight:900;color:#9ca3af;margin-bottom:4px;">${getKoreanDayName(dateObj).replace('요일','')}</div>` : '';
+      let indicator = '';
+      if (list.length) {
+        indicator = completed === list.length ? '<div class="todo-indicator done">완료</div>' : `<div class="todo-indicator">${completed}/${list.length}개</div>`;
+      }
+      cell.innerHTML = `<div>${weekday}<span class="date-number ${dayClass}">${dateObj.getDate()}</span></div>${indicator}`;
+      cell.addEventListener('click', () => selectDate(dateObj));
+      return cell;
+    }
+
+    function renderTodoList() {
+      const key = formatDateKey(selectedDate);
+      const list = todos[key] || [];
+      const title = document.getElementById('todo-date-title');
+      const badge = document.getElementById('todo-progress-badge');
+      const container = document.getElementById('todo-list-container');
+      const empty = document.getElementById('todo-empty-state');
+      title.textContent = `⭐ ${selectedDate.getFullYear()}년 ${String(selectedDate.getMonth() + 1).padStart(2, '0')}월 ${String(selectedDate.getDate()).padStart(2, '0')}일 (${getKoreanDayName(selectedDate).slice(0, 1)})`;
+      container.innerHTML = '';
+      if (!list.length) {
+        empty.classList.remove('hidden');
+        badge.textContent = '0% 완료';
+        return;
+      }
+      empty.classList.add('hidden');
+      const completed = list.filter(item => item.completed).length;
+      badge.textContent = `${Math.round((completed / list.length) * 100)}% 완료`;
+      list.forEach(item => {
+        const row = document.createElement('div');
+        row.className = `todo-item ${item.completed ? 'completed' : ''}`;
+        row.innerHTML = `<label><input type="checkbox" ${item.completed ? 'checked' : ''} data-toggle-id="${item.id}" /><span>${escapeHtml(item.text)}</span></label><button type="button" class="delete-btn" data-delete-id="${item.id}" title="삭제">🗑</button>`;
+        container.appendChild(row);
+      });
+      container.querySelectorAll('[data-toggle-id]').forEach(el => el.addEventListener('change', () => toggleTodo(el.dataset.toggleId)));
+      container.querySelectorAll('[data-delete-id]').forEach(el => el.addEventListener('click', () => deleteTodo(el.dataset.deleteId)));
+    }
+
+    function changeViewMode(mode) { viewMode = mode === 'week' ? 'week' : 'month'; renderApp(); }
+    function changeLayoutMode(mode) { layoutMode = mode === 'table' ? 'table' : 'grid'; renderApp(); }
+    function navigateCalendar(direction) { if (viewMode === 'month') currentDate.setMonth(currentDate.getMonth() + direction); else currentDate.setDate(currentDate.getDate() + direction * 7); renderApp(); }
+    function goToToday() { currentDate = new Date(); selectedDate = new Date(); renderApp(); }
+    function selectDate(dateObj) { selectedDate = new Date(dateObj); renderApp(); }
+
+    function addTodo(event) {
+      event.preventDefault();
+      const input = document.getElementById('todo-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const key = formatDateKey(selectedDate);
+      if (!todos[key]) todos[key] = [];
+      todos[key].push({ id: String(Date.now()), text, completed: false });
+      input.value = '';
+      saveTodos();
+      renderApp();
+      showToast('할 일이 추가되었습니다 ✨');
+    }
+    function toggleTodo(id) {
+      const key = formatDateKey(selectedDate);
+      const target = (todos[key] || []).find(item => item.id === id);
+      if (target) target.completed = !target.completed;
+      saveTodos();
+      renderApp();
+    }
+    function deleteTodo(id) {
+      const key = formatDateKey(selectedDate);
+      todos[key] = (todos[key] || []).filter(item => item.id !== id);
+      saveTodos();
+      renderApp();
+    }
+
+    function loadNoteForSelectedDate() {
+      const key = formatDateKey(selectedDate);
+      const note = noteDataset[key] || { subject: '', content: '' };
+      document.getElementById('note-subject').value = note.subject || '';
+      document.getElementById('note-content').value = note.content || '';
+      document.getElementById('note-status-text').textContent = '✏️ 새 노트 작성 중';
+    }
+    function autoSaveNoteWithDebounce() {
+      document.getElementById('note-status-text').textContent = '⏳ 입력하는 중...';
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(commitSaveNote, 450);
+    }
+    function commitSaveNote() {
+      const key = formatDateKey(selectedDate);
+      const subject = document.getElementById('note-subject').value.trim();
+      const content = document.getElementById('note-content').value;
+      if (!subject && !content.trim()) delete noteDataset[key];
+      else noteDataset[key] = { subject, content };
+      localStorage.setItem('haruharu_notes', JSON.stringify(noteDataset));
+      document.getElementById('note-status-text').textContent = '☁️ 실시간 자동 저장됨';
+    }
+    function clearCurrentNote() {
+      if (!confirm('정말 이 날짜의 수업 필기 노트를 전부 지우시겠습니까?')) return;
+      document.getElementById('note-subject').value = '';
+      document.getElementById('note-content').value = '';
+      commitSaveNote();
+      showToast('노트 내용이 초기화되었습니다.');
+    }
+
+    function startWeatherAutoRefresh() {
+      stopWeatherAutoRefresh();
+      weatherTimer = setInterval(() => refreshSeoulWeather(false), 5 * 60 * 1000);
+    }
+    function stopWeatherAutoRefresh() {
+      if (weatherTimer) clearInterval(weatherTimer);
+      weatherTimer = null;
+    }
+
+    async function refreshSeoulWeather(showLoading) {
+      const errorBox = document.getElementById('weather-error');
+      errorBox.classList.add('hidden');
+      if (showLoading) renderWeatherLoading();
+
+      try {
+        const results = await fetchSeoulWeatherBatch();
+        weatherDataset = results;
+        renderWeather();
+        document.getElementById('weather-updated').textContent = `마지막 갱신: ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`;
+
+        const missingAir = results.some(item => item.airSource !== 'open-meteo');
+        const missingWeather = results.some(item => item.weatherSource !== 'open-meteo');
+        if (missingAir || missingWeather) {
+          errorBox.textContent = '일부 API 항목이 응답하지 않아 표시 가능한 데이터와 안전한 예비값을 함께 사용했습니다. 새로고침하면 다시 실시간 조회를 시도합니다.';
+          errorBox.classList.remove('hidden');
+        }
+      } catch (error) {
+        console.error('서울 하늘 API 오류:', error);
+        errorBox.textContent = 'Open-Meteo API 연결에 실패하여 예비 데이터를 표시했습니다. 인터넷 연결, 광고 차단/보안 확장 프로그램, 사내망 방화벽을 확인해 주세요.';
+        errorBox.classList.remove('hidden');
+        renderWeatherFallback();
+      }
+    }
+
+    async function fetchSeoulWeatherBatch() {
+      const latitudes = seoulNeighborhoods.map(place => place.lat).join(',');
+      const longitudes = seoulNeighborhoods.map(place => place.lon).join(',');
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitudes}&longitude=${longitudes}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=Asia%2FSeoul`;
+      // Open-Meteo 대기질 API는 시간별(hourly) 값이 안정적으로 제공됩니다. 현재 시각에 가장 가까운 값을 선택합니다.
+      const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitudes}&longitude=${longitudes}&hourly=pm10,pm2_5,us_aqi&timezone=Asia%2FSeoul&forecast_days=1`;
+
+      const [weatherResult, airResult] = await Promise.allSettled([
+        fetchJsonWithTimeout(weatherUrl, 12000),
+        fetchJsonWithTimeout(airUrl, 12000)
+      ]);
+
+      const weatherPayload = weatherResult.status === 'fulfilled' ? normalizeOpenMeteoList(weatherResult.value) : [];
+      const airPayload = airResult.status === 'fulfilled' ? normalizeOpenMeteoList(airResult.value) : [];
+
+      if (!weatherPayload.length && !airPayload.length) {
+        throw new Error('Both weather and air-quality requests failed');
+      }
+
+      return seoulNeighborhoods.map((place, index) => {
+        const weather = weatherPayload[index] || {};
+        const air = airPayload[index] || {};
+        const current = weather.current || {};
+        const hourlyAir = pickNearestHourlyAir(air.hourly || {});
+        const fallback = makeFallbackWeather(place, index);
+
+        return {
+          ...place,
+          temperature: preferNumber(current.temperature_2m, fallback.temperature),
+          humidity: preferNumber(current.relative_humidity_2m, fallback.humidity),
+          wind: preferNumber(current.wind_speed_10m, fallback.wind),
+          weatherCode: typeof current.weather_code === 'number' ? current.weather_code : fallback.weatherCode,
+          pm10: preferNumber(hourlyAir.pm10, fallback.pm10),
+          pm25: preferNumber(hourlyAir.pm25, fallback.pm25),
+          aqi: preferNumber(hourlyAir.us_aqi, fallback.aqi),
+          weatherSource: weather.current ? 'open-meteo' : 'fallback',
+          airSource: hourlyAir.hasData ? 'open-meteo' : 'fallback'
+        };
+      });
+    }
+
+    async function fetchJsonWithTimeout(url, timeoutMs) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (data && data.error) throw new Error(data.reason || 'Open-Meteo returned error');
+        return data;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    function normalizeOpenMeteoList(payload) {
+      if (!payload) return [];
+      return Array.isArray(payload) ? payload : [payload];
+    }
+
+    function pickNearestHourlyAir(hourly) {
+      if (!hourly || !Array.isArray(hourly.time) || !hourly.time.length) {
+        return { hasData: false };
+      }
+      const now = Date.now();
+      let bestIndex = 0;
+      let bestGap = Infinity;
+      hourly.time.forEach((timeValue, index) => {
+        const gap = Math.abs(new Date(timeValue).getTime() - now);
+        if (gap < bestGap) {
+          bestGap = gap;
+          bestIndex = index;
+        }
+      });
+      return {
+        pm10: valueAt(hourly.pm10, bestIndex),
+        pm2_5: valueAt(hourly.pm2_5, bestIndex),
+        us_aqi: valueAt(hourly.us_aqi, bestIndex),
+        hasData: true
+      };
+    }
+
+    function valueAt(list, index) {
+      return Array.isArray(list) && typeof list[index] === 'number' ? list[index] : null;
+    }
+
+    function preferNumber(value, fallback) {
+      return typeof value === 'number' && Number.isFinite(value) ? roundNum(value) : fallback;
+    }
+
+    function makeFallbackWeather(place, index) {
+      // API가 일시적으로 막혔을 때 UI가 깨지지 않도록 서울 중심 기준의 부드러운 예비값을 만듭니다.
+      const hour = new Date().getHours();
+      const dailyWave = Math.sin((hour - 7) / 24 * Math.PI * 2);
+      const southWarmth = Math.max(0, 37.57 - place.lat) * 18;
+      const eastOffset = (place.lon - 126.98) * 4;
+      const baseTemp = 21 + dailyWave * 4 + southWarmth + eastOffset + (index % 3) * 0.4;
+      return {
+        temperature: roundNum(baseTemp),
+        humidity: Math.round(54 + (index % 5) * 3),
+        wind: roundNum(1.4 + (index % 4) * 0.3),
+        weatherCode: 2,
+        pm10: Math.round(32 + (index % 5) * 4),
+        pm25: roundNum(16 + (index % 4) * 2.2),
+        aqi: Math.round(42 + (index % 5) * 8)
+      };
+    }
+
+    async function fetchNeighborhoodWeather(place) {
+      const index = seoulNeighborhoods.findIndex(item => item.name === place.name);
+      const fallback = makeFallbackWeather(place, index < 0 ? 0 : index);
+      try {
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=Asia%2FSeoul`;
+        const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${place.lat}&longitude=${place.lon}&hourly=pm10,pm2_5,us_aqi&timezone=Asia%2FSeoul&forecast_days=1`;
+        const [weather, air] = await Promise.all([
+          fetchJsonWithTimeout(weatherUrl, 10000),
+          fetchJsonWithTimeout(airUrl, 10000)
+        ]);
+        const current = weather.current || {};
+        const hourlyAir = pickNearestHourlyAir(air.hourly || {});
+        return {
+          ...place,
+          temperature: preferNumber(current.temperature_2m, fallback.temperature),
+          humidity: preferNumber(current.relative_humidity_2m, fallback.humidity),
+          wind: preferNumber(current.wind_speed_10m, fallback.wind),
+          weatherCode: typeof current.weather_code === 'number' ? current.weather_code : fallback.weatherCode,
+          pm10: preferNumber(hourlyAir.pm10, fallback.pm10),
+          pm25: preferNumber(hourlyAir.pm2_5, fallback.pm25),
+          aqi: preferNumber(hourlyAir.us_aqi, fallback.aqi),
+          weatherSource: 'open-meteo',
+          airSource: hourlyAir.hasData ? 'open-meteo' : 'fallback'
+        };
+      } catch (error) {
+        return { ...place, ...fallback, weatherSource: 'fallback', airSource: 'fallback' };
+      }
+    }
+
+    function roundNum(value) { return typeof value === 'number' ? Math.round(value * 10) / 10 : null; }
+
+    function renderWeatherLoading() {
+      document.getElementById('summary-temp').textContent = '불러오는 중';
+      document.getElementById('summary-pm25').textContent = '불러오는 중';
+      document.getElementById('summary-air').textContent = '불러오는 중';
+      const hiddenPins = document.getElementById('map-pins');
+      if (hiddenPins) hiddenPins.innerHTML = '';
+      ensureSeoulHeatMap();
+      document.getElementById('weather-list').innerHTML = '<div class="notice-box loading" style="grid-column: 1 / -1;">Open-Meteo에서 서울 동네별 날씨와 미세먼지를 불러오는 중입니다...</div>';
+    }
+
+    function renderWeatherFallback() {
+      const fallback = seoulNeighborhoods.map((place, index) => ({
+        ...place,
+        temperature: 20 + index % 4,
+        humidity: 55 + index,
+        wind: 1.5 + index / 10,
+        weatherCode: 2,
+        pm10: 35 + index,
+        pm25: 18 + index / 2,
+        aqi: 48 + index
+      }));
+      weatherDataset = fallback;
+      renderWeather();
+      document.getElementById('weather-updated').textContent = '샘플 표시 중';
+    }
+
+    function renderWeather() {
+      if (!weatherDataset.length) return;
+      const avgTemp = average(weatherDataset.map(item => item.temperature));
+      const avgPm25 = average(weatherDataset.map(item => item.pm25));
+      const avgAqi = average(weatherDataset.map(item => item.aqi));
+      document.getElementById('summary-temp').textContent = `${avgTemp.toFixed(1)}℃`;
+      document.getElementById('summary-pm25').textContent = `${avgPm25.toFixed(1)}㎍/㎥`;
+      document.getElementById('summary-air').innerHTML = `<span class="${airClass(avgAqi)}">${airLabel(avgAqi)}</span>`;
+      renderSeoulHeatMap();
+      renderWeatherCards();
+    }
+
+    function average(values) {
+      const valid = values.filter(value => typeof value === 'number' && !Number.isNaN(value));
+      if (!valid.length) return 0;
+      return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+    }
+
+    function bindHeatMapControls() {
+      document.querySelectorAll('[data-heat-mode]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          heatMapMode = btn.dataset.heatMode || 'temperature';
+          document.querySelectorAll('[data-heat-mode]').forEach(item => item.classList.toggle('active', item.dataset.heatMode === heatMapMode));
+          renderSeoulHeatMap();
+        });
+      });
+      const fitBtn = document.getElementById('map-fit-btn');
+      if (fitBtn) fitBtn.addEventListener('click', fitSeoulHeatMap);
+    }
+
+    function ensureSeoulHeatMap() {
+      const mapEl = document.getElementById('seoul-heat-map');
+      if (!mapEl || seoulLeafletMap || typeof L === 'undefined') return;
+
+      seoulLeafletMap = L.map(mapEl, {
+        center: [37.5665, 126.9780],
+        zoom: 11,
+        zoomControl: true,
+        attributionControl: true
+      });
+
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(seoulLeafletMap);
+
+      seoulMarkerLayer = L.layerGroup().addTo(seoulLeafletMap);
+      setTimeout(() => seoulLeafletMap.invalidateSize(), 120);
+    }
+
+    function fitSeoulHeatMap() {
+      if (!seoulLeafletMap) return;
+      const points = (weatherDataset.length ? weatherDataset : seoulNeighborhoods).map(item => [item.lat, item.lon]);
+      seoulLeafletMap.fitBounds(points, { padding: [28, 28], maxZoom: 12 });
+    }
+
+    function renderSeoulHeatMap() {
+      const legendTitle = document.getElementById('heat-legend-title');
+      ensureSeoulHeatMap();
+
+      if (!seoulLeafletMap || typeof L === 'undefined') {
+        renderFallbackHeatPins();
+        return;
+      }
+      if (!weatherDataset.length) return;
+
+      if (seoulHeatLayer) {
+        seoulLeafletMap.removeLayer(seoulHeatLayer);
+        seoulHeatLayer = null;
+      }
+      if (seoulMarkerLayer) seoulMarkerLayer.clearLayers();
+
+      const metricKey = heatMapMode === 'pm25' ? 'pm25' : 'temperature';
+      const values = weatherDataset.map(item => item[metricKey]).filter(value => typeof value === 'number');
+      const minValue = values.length ? Math.min(...values) : 0;
+      const maxValue = values.length ? Math.max(...values) : 1;
+      const range = Math.max(maxValue - minValue, 1);
+
+      const heatPoints = weatherDataset.map(item => {
+        const raw = typeof item[metricKey] === 'number' ? item[metricKey] : minValue;
+        const intensity = 0.28 + ((raw - minValue) / range) * 0.72;
+        return [item.lat, item.lon, intensity];
+      });
+
+      if (typeof L.heatLayer === 'function') {
+        seoulHeatLayer = L.heatLayer(heatPoints, {
+          radius: 34,
+          blur: 26,
+          maxZoom: 13,
+          minOpacity: 0.35,
+          gradient: {
+            0.15: '#60a5fa',
+            0.35: '#34d399',
+            0.55: '#facc15',
+            0.75: '#fb923c',
+            1.0: '#ef4444'
+          }
+        }).addTo(seoulLeafletMap);
+      }
+
+      weatherDataset.forEach(item => {
+        const metricValue = item[metricKey];
+        const markerColor = heatColor(metricValue, minValue, range);
+        const circle = L.circleMarker([item.lat, item.lon], {
+          radius: item.name === selectedNeighborhood ? 13 : 10,
+          color: '#ffffff',
+          weight: 2,
+          fillColor: markerColor,
+          fillOpacity: 0.88
+        }).addTo(seoulMarkerLayer);
+        circle.bindTooltip(`<div class="heat-marker"><strong>${item.name}</strong><span>${displayValue(item.temperature, '℃')}</span><small>PM2.5 ${displayValue(item.pm25, '')} · AQI ${displayValue(item.aqi, '')}</small></div>`, { direction: 'top', offset: [0, -10], opacity: 0.96 });
+        circle.on('click', () => {
+          selectedNeighborhood = item.name;
+          renderWeatherCards();
+          renderSeoulHeatMap();
+        });
+      });
+
+      if (legendTitle) {
+        legendTitle.textContent = heatMapMode === 'pm25'
+          ? `PM2.5가 높을수록 붉게 표시됩니다. 현재 범위 ${minValue.toFixed(1)}~${maxValue.toFixed(1)}㎍/㎥`
+          : `기온이 높을수록 붉게 표시됩니다. 현재 범위 ${minValue.toFixed(1)}~${maxValue.toFixed(1)}℃`;
+      }
+      setTimeout(() => seoulLeafletMap.invalidateSize(), 80);
+    }
+
+    function renderFallbackHeatPins() {
+      const wrap = document.getElementById('map-pins');
+      if (!wrap) return;
+      wrap.classList.remove('hidden');
+      wrap.innerHTML = '';
+      weatherDataset.forEach(item => {
+        const pin = document.createElement('div');
+        pin.className = 'map-pin';
+        pin.style.left = `${item.x}%`;
+        pin.style.top = `${item.y}%`;
+        pin.innerHTML = `<button type="button" data-place="${item.name}"><span class="pin-name">${item.name}</span><span class="pin-temp">${displayValue(item.temperature, '℃')}</span><br><span class="${airClass(item.aqi)}">${airLabel(item.aqi)}</span></button>`;
+        wrap.appendChild(pin);
+      });
+    }
+
+    function heatColor(value, minValue, range) {
+      if (typeof value !== 'number') return '#94a3b8';
+      const ratio = Math.max(0, Math.min(1, (value - minValue) / range));
+      if (ratio < 0.2) return '#60a5fa';
+      if (ratio < 0.4) return '#34d399';
+      if (ratio < 0.6) return '#facc15';
+      if (ratio < 0.8) return '#fb923c';
+      return '#ef4444';
+    }
+
+    function renderWeatherCards() {
+      const list = document.getElementById('weather-list');
+      list.innerHTML = '';
+      weatherDataset.forEach(item => {
+        const card = document.createElement('div');
+        card.className = `weather-card ${item.name === selectedNeighborhood ? 'active' : ''}`;
+        card.innerHTML = `
+          <div class="weather-card-head">
+            <div><h3>${item.name}</h3><div class="condition">${weatherIcon(item.weatherCode)} ${weatherLabel(item.weatherCode)}</div></div>
+            <div class="temp">${displayValue(item.temperature, '℃')}</div>
+          </div>
+          <div class="metric-row">
+            <div class="metric"><small>PM2.5</small><strong class="${airClass(item.aqi)}">${displayValue(item.pm25, '')}</strong></div>
+            <div class="metric"><small>PM10</small><strong>${displayValue(item.pm10, '')}</strong></div>
+            <div class="metric"><small>AQI</small><strong class="${airClass(item.aqi)}">${displayValue(item.aqi, '')}</strong></div>
+          </div>
+          <div class="metric-row">
+            <div class="metric"><small>습도</small><strong>${displayValue(item.humidity, '%')}</strong></div>
+            <div class="metric"><small>바람</small><strong>${displayValue(item.wind, 'km/h')}</strong></div>
+            <div class="metric"><small>상태</small><strong class="${airClass(item.aqi)}">${airLabel(item.aqi)}</strong></div>
+          </div>`;
+        card.addEventListener('click', () => {
+          selectedNeighborhood = item.name;
+          renderWeatherCards();
+          renderSeoulHeatMap();
+        });
+        list.appendChild(card);
+      });
+    }
+
+    function displayValue(value, unit) { return typeof value === 'number' ? `${value}${unit}` : '-'; }
+    function airLabel(aqi) { if (typeof aqi !== 'number') return '-'; if (aqi <= 50) return '좋음'; if (aqi <= 100) return '보통'; return '나쁨'; }
+    function airClass(aqi) { if (typeof aqi !== 'number') return ''; if (aqi <= 50) return 'air-good'; if (aqi <= 100) return 'air-normal'; return 'air-bad'; }
+    function weatherIcon(code) { if ([0].includes(code)) return '☀️'; if ([1,2,3].includes(code)) return '⛅'; if ([45,48].includes(code)) return '🌫️'; if ([51,53,55,61,63,65,80,81,82].includes(code)) return '🌧️'; if ([71,73,75,77,85,86].includes(code)) return '❄️'; if ([95,96,99].includes(code)) return '⛈️'; return '🌤️'; }
+    function weatherLabel(code) { if (code === 0) return '맑음'; if ([1,2,3].includes(code)) return '구름'; if ([45,48].includes(code)) return '안개'; if ([51,53,55].includes(code)) return '이슬비'; if ([61,63,65,80,81,82].includes(code)) return '비'; if ([71,73,75,77,85,86].includes(code)) return '눈'; if ([95,96,99].includes(code)) return '뇌우'; return '날씨'; }
+
+
+    function initExchangeModule() {
+      const keyInput = document.getElementById('exchange-api-key');
+      if (!keyInput) return;
+      keyInput.value = localStorage.getItem('haruharu_kexim_api_key') || '';
+      fillCurrencySelects();
+      setExchangeDefaultDates();
+      renderExchangeCachedResult();
+    }
+
+    function bindExchangeEvents() {
+      const loadBtn = document.getElementById('exchange-load-btn');
+      if (!loadBtn) return;
+      loadBtn.addEventListener('click', loadExchangeRates);
+      document.getElementById('exchange-save-key-btn').addEventListener('click', saveExchangeApiKey);
+      document.getElementById('exchange-clear-key-btn').addEventListener('click', clearExchangeApiKey);
+      document.getElementById('exchange-swap-btn').addEventListener('click', swapExchangeCurrencies);
+      document.getElementById('exchange-reset-btn').addEventListener('click', () => { setExchangeDefaultDates(); renderExchangeCachedResult(); });
+      ['exchange-date-a','exchange-date-b','exchange-from','exchange-to','exchange-amount'].forEach(id => {
+        document.getElementById(id).addEventListener('input', renderExchangeCachedResult);
+        document.getElementById(id).addEventListener('change', renderExchangeCachedResult);
+      });
+    }
+
+    function fillCurrencySelects() {
+      const from = document.getElementById('exchange-from');
+      const to = document.getElementById('exchange-to');
+      const options = exchangeCurrencies.map(cur => `<option value="${cur.code}">${cur.label}</option>`).join('');
+      from.innerHTML = options;
+      to.innerHTML = options;
+      from.value = 'KRW';
+      to.value = 'USD';
+    }
+
+    function setExchangeDefaultDates() {
+      const today = new Date();
+      const prev = new Date(today);
+      prev.setDate(today.getDate() - 1);
+      document.getElementById('exchange-date-a').value = formatDateKey(prev);
+      document.getElementById('exchange-date-b').value = formatDateKey(today);
+      document.getElementById('rate-head-a').textContent = formatDateKey(prev);
+      document.getElementById('rate-head-b').textContent = formatDateKey(today);
+    }
+
+    function saveExchangeApiKey() {
+      const key = document.getElementById('exchange-api-key').value.trim();
+      if (!key) { showExchangeError('저장할 API KEY를 입력해 주세요.'); return; }
+      localStorage.setItem('haruharu_kexim_api_key', key);
+      hideExchangeError();
+      showToast('한국수출입은행 API KEY를 저장했습니다.');
+    }
+
+    function clearExchangeApiKey() {
+      localStorage.removeItem('haruharu_kexim_api_key');
+      document.getElementById('exchange-api-key').value = '';
+      showToast('저장된 API KEY를 삭제했습니다.');
+    }
+
+    function swapExchangeCurrencies() {
+      const from = document.getElementById('exchange-from');
+      const to = document.getElementById('exchange-to');
+      const temp = from.value;
+      from.value = to.value;
+      to.value = temp;
+      renderExchangeCachedResult();
+    }
+
+    async function loadExchangeRates() {
+      const apiKey = document.getElementById('exchange-api-key').value.trim() || localStorage.getItem('haruharu_kexim_api_key') || '';
+      const dateA = document.getElementById('exchange-date-a').value;
+      const dateB = document.getElementById('exchange-date-b').value;
+      if (!apiKey) { showExchangeError('한국수출입은행 API KEY를 입력해 주세요. 입력한 키는 브라우저에만 저장할 수 있습니다.'); return; }
+      if (!dateA || !dateB) { showExchangeError('비교할 날짜 A와 날짜 B를 모두 선택해 주세요.'); return; }
+      hideExchangeError();
+      document.getElementById('exchange-load-btn').textContent = '조회 중...';
+      document.getElementById('exchange-load-btn').disabled = true;
+      try {
+        const [ratesA, ratesB] = await Promise.all([fetchKeximRates(dateA, apiKey), fetchKeximRates(dateB, apiKey)]);
+        exchangeCache[dateA] = ratesA;
+        exchangeCache[dateB] = ratesB;
+        localStorage.setItem('haruharu_kexim_api_key', apiKey);
+        renderExchangeCachedResult();
+        showToast('환율 데이터를 불러왔습니다.');
+      } catch (error) {
+        showExchangeError(error.message || '환율 조회 중 오류가 발생했습니다.');
+      } finally {
+        document.getElementById('exchange-load-btn').textContent = '환율 조회';
+        document.getElementById('exchange-load-btn').disabled = false;
+      }
+    }
+
+    async function fetchKeximRates(dateText, apiKey) {
+      const searchDate = dateText.replaceAll('-', '');
+      const query = `authkey=${encodeURIComponent(apiKey)}&searchdate=${searchDate}&data=AP01`;
+      const urls = [
+        `https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?${query}`,
+        `https://www.koreaexim.go.kr/site/program/financial/exchangeJSON?${query}`
+      ];
+      let data = null;
+      let lastError = null;
+      for (const url of urls) {
+        try {
+          const response = await fetch(url, { method: 'GET' });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          data = await response.json();
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (!data) {
+        throw new Error(`브라우저에서 한국수출입은행 API 호출이 차단되었거나 네트워크 오류가 발생했습니다. 로컬 파일(file://)에서 열었다면 간단한 로컬 서버로 실행해 보세요. (${lastError ? lastError.message : '응답 없음'})`);
+      }
+      if (!Array.isArray(data)) throw new Error('API 응답 형식이 예상과 다릅니다. API KEY 또는 요청 날짜를 확인해 주세요.');
+      if (data.length === 0) throw new Error(`${dateText} 환율 데이터가 없습니다. 주말, 공휴일 또는 비영업일일 수 있습니다.`);
+      return normalizeKeximRates(data);
+    }
+
+    function normalizeKeximRates(rows) {
+      const rates = { KRW: { krwPerUnit: 1, raw: '1', name: '원화' } };
+      rows.forEach(row => {
+        const rawUnit = String(row.cur_unit || '').trim();
+        const rawRate = String(row.deal_bas_r || '').replace(/,/g, '');
+        const value = Number(rawRate);
+        if (!rawUnit || !Number.isFinite(value)) return;
+        let code = rawUnit;
+        let krwPerUnit = value;
+        if (rawUnit === 'JPY(100)') { code = 'JPY'; krwPerUnit = value / 100; }
+        if (rawUnit === 'CNH') code = 'CNY';
+        if (['USD', 'JPY', 'CNY', 'EUR'].includes(code)) {
+          rates[code] = { krwPerUnit, raw: row.deal_bas_r, name: row.cur_nm || code };
+        }
+      });
+      return rates;
+    }
+
+    function renderExchangeCachedResult() {
+      const dateA = document.getElementById('exchange-date-a') && document.getElementById('exchange-date-a').value;
+      const dateB = document.getElementById('exchange-date-b') && document.getElementById('exchange-date-b').value;
+      if (!dateA || !dateB) return;
+      document.getElementById('rate-head-a').textContent = dateA;
+      document.getElementById('rate-head-b').textContent = dateB;
+      document.getElementById('result-date-a-label').textContent = `${dateA} 계산 결과`;
+      document.getElementById('result-date-b-label').textContent = `${dateB} 계산 결과`;
+      renderExchangeResultCard('a', dateA);
+      renderExchangeResultCard('b', dateB);
+      renderExchangeRateTable(dateA, dateB);
+    }
+
+    function renderExchangeResultCard(suffix, dateText) {
+      const amount = Number(document.getElementById('exchange-amount').value || 0);
+      const from = document.getElementById('exchange-from').value;
+      const to = document.getElementById('exchange-to').value;
+      const resultEl = document.getElementById(`exchange-result-${suffix}`);
+      const subEl = document.getElementById(`exchange-result-${suffix}-sub`);
+      const rates = exchangeCache[dateText];
+      if (!rates) {
+        resultEl.textContent = '-';
+        subEl.textContent = '이 날짜의 환율을 아직 조회하지 않았습니다.';
+        return;
+      }
+      const converted = convertCurrency(amount, from, to, rates);
+      if (converted === null) {
+        resultEl.textContent = '-';
+        subEl.textContent = '선택한 통화 환율이 응답에 없습니다.';
+        return;
+      }
+      resultEl.textContent = `${formatMoney(converted)} ${currencyUnit(to)}`;
+      subEl.textContent = `${formatMoney(amount)} ${currencyUnit(from)} → ${currencyUnit(to)} · 기준환율 ${from}=₩${formatMoney(rates[from].krwPerUnit)}, ${to}=₩${formatMoney(rates[to].krwPerUnit)}`;
+    }
+
+    function renderExchangeRateTable(dateA, dateB) {
+      const tbody = document.getElementById('exchange-rate-table');
+      const ratesA = exchangeCache[dateA];
+      const ratesB = exchangeCache[dateB];
+      if (!ratesA && !ratesB) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray);">환율 조회 버튼을 눌러 주세요.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = exchangeCurrencies.map(cur => {
+        const a = ratesA && ratesA[cur.code] ? ratesA[cur.code].krwPerUnit : null;
+        const b = ratesB && ratesB[cur.code] ? ratesB[cur.code].krwPerUnit : null;
+        const diff = (typeof a === 'number' && typeof b === 'number') ? b - a : null;
+        const diffClass = diff === null ? '' : diff > 0 ? 'rate-up' : diff < 0 ? 'rate-down' : 'rate-flat';
+        const diffText = diff === null ? '-' : `${diff > 0 ? '+' : ''}${formatMoney(diff)}원`;
+        return `<tr><td>${cur.label}</td><td>${a === null ? '-' : formatMoney(a) + '원'}</td><td>${b === null ? '-' : formatMoney(b) + '원'}</td><td class="${diffClass}">${diffText}</td></tr>`;
+      }).join('');
+    }
+
+    function convertCurrency(amount, from, to, rates) {
+      if (!rates[from] || !rates[to] || !Number.isFinite(amount)) return null;
+      const krwAmount = amount * rates[from].krwPerUnit;
+      return krwAmount / rates[to].krwPerUnit;
+    }
+
+    function currencyUnit(code) {
+      const item = exchangeCurrencies.find(cur => cur.code === code);
+      return item ? item.unit : code;
+    }
+
+    function formatMoney(value) {
+      if (!Number.isFinite(value)) return '-';
+      return new Intl.NumberFormat('ko-KR', { maximumFractionDigits: value >= 100 ? 2 : 4 }).format(value);
+    }
+
+    function showExchangeError(message) {
+      const box = document.getElementById('exchange-error');
+      box.textContent = message;
+      box.classList.remove('hidden');
+    }
+
+    function hideExchangeError() {
+      const box = document.getElementById('exchange-error');
+      box.textContent = '';
+      box.classList.add('hidden');
+    }
+
+    function openDataModal() { document.getElementById('data-modal').classList.remove('hidden'); }
+    function closeDataModal() { document.getElementById('data-modal').classList.add('hidden'); }
+
+    function triggerExport() {
+      const start = document.getElementById('export-start').value;
+      const end = document.getElementById('export-end').value;
+      const rows = [['date', 'type', 'text', 'completed', 'subject', 'content']];
+      Object.keys(todos).sort().forEach(date => {
+        if (date < start || date > end) return;
+        (todos[date] || []).forEach(todo => rows.push([date, 'todo', todo.text, todo.completed ? 'true' : 'false', '', '']));
+      });
+      Object.keys(noteDataset).sort().forEach(date => {
+        if (date < start || date > end) return;
+        const note = noteDataset[date];
+        rows.push([date, 'note', '', '', note.subject || '', note.content || '']);
+      });
+      const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `haruharu_backup_${start}_${end}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV 파일을 다운로드했습니다.');
+    }
+    function csvEscape(value) { const text = String(value ?? ''); return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text; }
+
+    function triggerImport() {
+      const fileInput = document.getElementById('import-file');
+      const file = fileInput.files[0];
+      if (!file) { showToast('가져올 CSV 파일을 선택해 주세요.'); return; }
+      const mode = document.querySelector('input[name="import-mode"]:checked').value;
+      const reader = new FileReader();
+      reader.onload = function () {
+        const rows = parseCsv(String(reader.result || '')).slice(1);
+        if (mode === 'overwrite') { todos = {}; noteDataset = {}; }
+        rows.forEach(row => {
+          const [date, type, text, completed, subject, content] = row;
+          if (!date || !type) return;
+          if (type === 'todo') {
+            if (!todos[date]) todos[date] = [];
+            todos[date].push({ id: String(Date.now() + Math.random()), text: text || '', completed: completed === 'true' });
+          }
+          if (type === 'note') noteDataset[date] = { subject: subject || '', content: content || '' };
+        });
+        saveTodos();
+        localStorage.setItem('haruharu_notes', JSON.stringify(noteDataset));
+        closeDataModal();
+        renderApp();
+        showToast('CSV 데이터를 가져왔습니다.');
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+    function parseCsv(text) {
+      const rows = [];
+      let row = [], value = '', quote = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+        if (ch === '"' && quote && next === '"') { value += '"'; i++; }
+        else if (ch === '"') quote = !quote;
+        else if (ch === ',' && !quote) { row.push(value); value = ''; }
+        else if ((ch === '\n' || ch === '\r') && !quote) {
+          if (ch === '\r' && next === '\n') i++;
+          row.push(value); rows.push(row); row = []; value = '';
+        } else value += ch;
+      }
+      if (value || row.length) { row.push(value); rows.push(row); }
+      return rows;
+    }
+
+    let toastTimeout = null;
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      clearTimeout(toastTimeout);
+      toast.classList.add('show');
+      toastTimeout = setTimeout(() => toast.classList.remove('show'), 2100);
+    }
+  </script>
+</body>
+</html>

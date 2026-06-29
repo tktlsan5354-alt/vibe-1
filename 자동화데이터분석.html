@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지역 사회 금연 및 흡연 데이터 자동 분석 시스템</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #1e3a8a;
+            --primary-light: #3b82f6;
+            --secondary-color: #0f172a;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #334155;
+            --border-color: #e2e8f0;
+            --accent-color: #ef4444;
+            --success-color: #10b981;
+            --purple-color: #8b5cf6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color), #2563eb);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .control-panel {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 25px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+        }
+
+        .upload-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-upload {
+            background-color: #f1f5f9;
+            color: var(--secondary-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-upload:hover {
+            background-color: #e2e8f0;
+        }
+
+        .btn-refresh {
+            background-color: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+        }
+
+        .btn-refresh:hover {
+            background-color: #bae6fd;
+        }
+
+        .btn-download {
+            background-color: #1e3a8a;
+            color: white;
+            padding: 8px 14px;
+            font-size: 13px;
+            border-radius: 6px;
+            box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+        }
+
+        .btn-download:hover {
+            background-color: #1d4ed8;
+        }
+
+        .status-badge {
+            font-size: 14px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            background-color: #d1fae5;
+            color: var(--success-color);
+        }
+
+        .report-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        @media (max-width: 1024px) {
+            .report-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .insight-card {
+            background: #eff6ff;
+            border-left: 5px solid var(--primary-light);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .insight-card h3 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .insight-card ul {
+            padding-left: 20px;
+            font-size: 14px;
+        }
+
+        .insight-card li {
+            margin-bottom: 5px;
+        }
+
+        .detail-analysis-card {
+            background: #faf5ff;
+            border-left: 5px solid var(--purple-color);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .detail-analysis-card h3 {
+            color: #6b21a8;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .detail-content {
+            font-size: 14px;
+            color: #581c87;
+        }
+
+        .detail-content .highlight {
+            font-weight: 700;
+            color: #c084fc;
+            background: #f3e8ff;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+        }
+
+        .kpi-title {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .kpi-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--secondary-color);
+        }
+
+        .dashboard-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            margin-bottom: 25px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--secondary-color);
+            border-left: 4px solid var(--primary-color);
+            padding-left: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .title-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .select-input {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-size: 14px;
+            outline: none;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+            width: 100%;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: var(--secondary-color);
+            font-weight: 600;
+            padding: 12px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr.selected-row {
+            background-color: #f0fdf4 !important;
+            border-left: 4px solid var(--success-color);
+        }
+
+        tr:hover {
+            background-color: #f8fafc;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>지역 사회 흡연 지표 및 민원·단속 데이터 자동 분석 시스템</h1>
+        <p>선명도 업그레이드 완료: 차트 다운로드 시 흰색 배경을 강제 주입하고 해상도를 극대화하여 글씨 깨짐을 보정했습니다.</p>
+    </header>
+
+    <div class="control-panel">
+        <div class="upload-row">
+            <span class="status-badge" id="statusBadge">시스템 대기 중</span>
+            <button class="btn btn-refresh" onclick="generateDynamicSampleData()">🔄 샘플 데이터 새로고치기</button>
+            <button class="btn btn-upload" onclick="document.getElementById('excelFile').click()">📂 외부 엑셀 파일 분석하기</button>
+            <input type="file" id="excelFile" accept=".xlsx, .xls" style="display: none;">
+        </div>
+    </div>
+
+    <div class="report-section">
+        <div class="insight-card">
+            <h3>📊 종합 데이터 분석 자동 요약 리포트</h3>
+            <ul id="insightList">
+                </ul>
+        </div>
+        
+        <div class="detail-analysis-card">
+            <h3>🔍 <span id="selectedYearTitle">-</span>년 세부 심층 진단 리포트</h3>
+            <div class="detail-content" id="detailAnalysisContent">
+                데이터 행을 클릭하거나 차트 옵션을 변경하면 해당 연도의 세부 맞춤형 행정 진단 결과가 이곳에 출력됩니다.
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-title">종합 분석 기간</div>
+            <div class="kpi-value" id="kpi-period">-</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">총 누적 흡연민원</div>
+            <div class="kpi-value" id="kpi-complaints">-</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">총 누적 흡연단속</div>
+            <div class="kpi-value" id="kpi-enforcements">-</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">민원 대비 평균 단속률</div>
+            <div class="kpi-value" id="kpi-ratio">-</div>
+        </div>
+    </div>
+
+    <div class="dashboard-content">
+        <div class="card">
+            <div class="card-title">
+                <div class="title-left">📉 연도별 민원 발생량 추이 및 행정 단속 실적 트렌드</div>
+                <div class="title-right">
+                    <button class="btn btn-download" onclick="downloadChartAsPNG('trendChart', '연도별_트렌드_분석_그래프')">📸 선명한 이미지 저장</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <div class="title-left">👥 연령대별 흡연 관련 인구 구성비</div>
+                <div class="title-right">
+                    <select id="yearSelector" class="select-input" onchange="syncSelectorToRow()">
+                        </select>
+                    <button class="btn btn-download" onclick="downloadChartAsPNG('agePieChart', '연령대별_인구_구성비_그래프')">📸 선명한 이미지 저장</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="agePieChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📋 분석 대상 데이터 그리드 (아래 행(Row)을 마우스로 클릭하면 실시간 세부 진단 연동이 시작됩니다)</div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>연도</th>
+                        <th>19세미만</th>
+                        <th>19-29세</th>
+                        <th>30-39세</th>
+                        <th>40-49세</th>
+                        <th>50-59세</th>
+                        <th>60-69세</th>
+                        <th>70세 이상</th>
+                        <th>흡연민원건</th>
+                        <th>흡연단속건</th>
+                        <th>데이터기준일자</th>
+                    </tr>
+                </thead>
+                <tbody id="previewTableBody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+    
+</div>
+
+<script>
+    let currentData = [];
+    let trendChartInstance = null;
+    let agePieChartInstance = null;
+
+    function getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        generateDynamicSampleData();
+        document.getElementById('excelFile').addEventListener('change', handleFileSelect, false);
+    });
+
+    function generateDynamicSampleData() {
+        const generatedData = [];
+        const years = [2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
+
+        years.forEach(year => {
+            const baseComp = (year >= 2014 && year <= 2016) ? getRandomInt(1400, 2300) : getRandomInt(200, 1100);
+            const baseEnf = Math.floor(baseComp * (getRandomInt(20, 65) / 100));
+
+            generatedData.push({
+                "연도": year,
+                "19세미만": getRandomInt(0, 35),
+                "19-29세": (year >= 2014 && year <= 2016) ? getRandomInt(500, 750) : getRandomInt(20, 280),
+                "30-39세": (year >= 2014 && year <= 2016) ? getRandomInt(200, 400) : getRandomInt(15, 130),
+                "40-49세": getRandomInt(10, 150),
+                "50-59세": getRandomInt(5, 70),
+                "60-69세": getRandomInt(1, 35),
+                "70세 이상": getRandomInt(0, 18),
+                "흡연민원건": baseComp,
+                "흡연단속건": baseEnf,
+                "데이터기준일자": "2024-12-31"
+            });
+        });
+
+        document.getElementById('statusBadge').textContent = "🎲 새로운 시뮬레이션 가상 샘플 데이터 정상 생성";
+        loadAndExecuteAnalysis(generatedData);
+    }
+
+    function cleanObjectKeys(obj) {
+        const cleaned = {};
+        for (let key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                const cleanKey = key.toString().replace(/\s+/g, '').trim();
+                cleaned[cleanKey] = obj[key];
+            }
+        }
+        return cleaned;
+    }
+
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const rawJson = XLSX.utils.sheet_to_json(worksheet);
+            
+            if(rawJson.length === 0) {
+                alert("엑셀 내부에 식별 가능한 데이터 행이 없습니다.");
+                return;
+            }
+            
+            const processedJson = rawJson.map(row => {
+                const target = cleanObjectKeys(row);
+                const year = target['연도'] || target['연度'] || 0;
+                return {
+                    "연도": Number(year),
+                    "19세미만": Number(target['19세미만']) || 0,
+                    "19-29세": Number(target['19-29세']) || 0,
+                    "30-39세": Number(target['30-39세']) || 0,
+                    "40-49세": Number(target['40-49세']) || 0,
+                    "50-59세": Number(target['50-59세']) || 0,
+                    "60-69세": Number(target['60-69세']) || 0,
+                    "70세 이상": Number(target['70세이상'] || target['70세이상']) || 0,
+                    "흡연민원건": Number(target['흡연민원건']) || 0,
+                    "흡연단속건": Number(target['흡연단속건']) || 0,
+                    "데이터기준일자": target['데이터기준일자'] || "2024-12-31"
+                };
+            });
+            
+            document.getElementById('statusBadge').textContent = "📂 외부 업로드 사용자 파일 기준 동적 분석 완료";
+            loadAndExecuteAnalysis(processedJson);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function loadAndExecuteAnalysis(data) {
+        currentData = data.filter(r => r['연도'] > 0).sort((a, b) => Number(a['연도']) - Number(b['연도']));
+        if(currentData.length === 0) {
+            alert("유효한 데이터 연도 필드를 찾을 수 없습니다.");
+            return;
+        }
+        renderDataTable();
+        executeStatisticalComputation();
+    }
+
+    function renderDataTable() {
+        const tbody = document.getElementById('previewTableBody');
+        tbody.innerHTML = '';
+        
+        currentData.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.setAttribute('id', `row-${row['연도']}`);
+            
+            tr.onclick = () => {
+                document.getElementById('yearSelector').value = row['연도'];
+                updateDetailAndPieChart(row['연도']);
+            };
+            
+            tr.innerHTML = `
+                <td style="font-weight:bold; color:var(--primary-color);">${row['연도']}</td>
+                <td>${row['19세미만'].toLocaleString()}</td>
+                <td>${row['19-29세'].toLocaleString()}</td>
+                <td>${row['30-39세'].toLocaleString()}</td>
+                <td>${row['40-49세'].toLocaleString()}</td>
+                <td>${row['50-59세'].toLocaleString()}</td>
+                <td>${row['60-69세'].toLocaleString()}</td>
+                <td>${row['70세 이상'].toLocaleString()}</td>
+                <td style="font-weight:600; color:#10b981;">${row['흡연민원건'].toLocaleString()}</td>
+                <td style="font-weight:600; color:#ec4899;">${row['흡연단속건'].toLocaleString()}</td>
+                <td style="font-size:12px; color:#64748b;">${row['데이터기준일자']}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function executeStatisticalComputation() {
+        let totalComplaints = 0;
+        let totalEnforcements = 0;
+        let maxComp = -1;
+        let maxCompYear = '';
+        
+        currentData.forEach(row => {
+            const comp = row['흡연민원건'];
+            const enf = row['흡연단속건'];
+            totalComplaints += comp;
+            totalEnforcements += enf;
+            if(comp > maxComp) {
+                maxComp = comp;
+                maxCompYear = row['연도'];
+            }
+        });
+
+        const startYear = currentData[0]['연도'];
+        const endYear = currentData[currentData.length - 1]['연도'];
+        const avgRatio = totalComplaints > 0 ? ((totalEnforcements / totalComplaints) * 100).toFixed(1) : 0;
+
+        document.getElementById('kpi-period').textContent = `${startYear}년 ~ ${endYear}년`;
+        document.getElementById('kpi-complaints').textContent = totalComplaints.toLocaleString() + ' 건';
+        document.getElementById('kpi-enforcements').textContent = totalEnforcements.toLocaleString() + ' 건';
+        document.getElementById('kpi-ratio').textContent = avgRatio + ' %';
+
+        const insightList = document.getElementById('insightList');
+        insightList.innerHTML = '';
+        const insights = [
+            `<strong>시계열 분석 요약:</strong> ${startYear}~${endYear}년 총 <strong>${totalComplaints.toLocaleString()}건</strong>의 민원 대비 행정 처분(단속)은 <strong>${totalEnforcements.toLocaleString()}건</strong>입니다.`,
+            `<strong>최대 취약 지점:</strong> 민원이 가장 대량으로 밀집된 해는 <strong>${maxCompYear}년</strong>(${maxComp.toLocaleString()}건)으로 집계되었습니다.`,
+            `💡 <strong>대화형 제어 안내:</strong> 하단 테이블의 행을 클릭하면 해당 연도의 파이차트와 세부 행정 진단이 즉시 동기화됩니다.`
+        ];
+        insights.forEach(text => {
+            const li = document.createElement('li');
+            li.innerHTML = text;
+            insightList.appendChild(li);
+        });
+
+        const selector = document.getElementById('yearSelector');
+        selector.innerHTML = '';
+        currentData.forEach(row => {
+            const opt = document.createElement('option');
+            opt.value = row['연도'];
+            opt.textContent = row['연도'] + '년';
+            selector.appendChild(opt);
+        });
+        selector.value = endYear;
+
+        renderTrendChart();
+        updateDetailAndPieChart(endYear);
+    }
+
+    function syncSelectorToRow() {
+        const selectedYear = Number(document.getElementById('yearSelector').value);
+        updateDetailAndPieChart(selectedYear);
+    }
+
+    function renderTrendChart() {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        const labels = currentData.map(row => row['연도'] + '년');
+        const complaints = currentData.map(row => row['흡연민원건']);
+        const enforcements = currentData.map(row => row['흡연단속건']);
+
+        if(trendChartInstance) trendChartInstance.destroy();
+
+        // 폰트 및 글로벌 기본 가독성 조절 적용
+        Chart.defaults.font.family = 'Pretendard, sans-serif';
+        Chart.defaults.font.size = 13;
+        Chart.defaults.color = '#334155';
+
+        trendChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '흡연민원접수건수',
+                        data: complaints,
+                        backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                        borderColor: 'rgb(5, 150, 105)',
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    },
+                    {
+                        label: '행정단속집행건수',
+                        data: enforcements,
+                        type: 'line',
+                        borderColor: 'rgb(236, 72, 153)',
+                        backgroundColor: 'rgb(236, 72, 153)',
+                        borderWidth: 4,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: 2, // 기본 뷰포트 선명도 강화 적용
+                plugins: {
+                    legend: { position: 'top', labels: { font: { weight: '700' } } }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { weight: '600' } } },
+                    x: { grid: { display: false }, ticks: { font: { weight: '600' } } }
+                }
+            }
+        });
+    }
+
+    function updateDetailAndPieChart(selectedYear) {
+        selectedYear = Number(selectedYear);
+        const row = currentData.find(r => r['연도'] === selectedYear);
+        if(!row) return;
+
+        currentData.forEach(r => {
+            const element = document.getElementById(`row-${r['연도']}`);
+            if(element) element.classList.remove('selected-row');
+        });
+        const selectedElement = document.getElementById(`row-${selectedYear}`);
+        if(selectedElement) selectedElement.classList.add('selected-row');
+
+        const ageLabels = ['19세미만', '19-29세', '30-39세', '40-49세', '50-59세', '60-69세', '70세 이상'];
+        const ageValues = [
+            row['19세미만'], row['19-29세'], row['30-39세'], row['40-49세'], row['50-59세'], row['60-69세'], row['70세 이상']
+        ];
+        
+        let maxAgeIndex = 0;
+        let maxAgeValue = -1;
+        ageValues.forEach((val, idx) => {
+            if(val > maxAgeValue) {
+                maxAgeValue = val;
+                maxAgeIndex = idx;
+            }
+        });
+
+        const compCount = row['흡연민원건'];
+        const enfCount = row['흡연단속건'];
+        const ratio = compCount > 0 ? ((enfCount / compCount) * 100).toFixed(1) : 0;
+        
+        let administrativeEvaluation = '';
+        if (ratio >= 50) {
+            administrativeEvaluation = "<span style='color:#10b981; font-weight:bold;'>[우수]</span> 민원 요구에 대한 단속 처리가 적극적으로 집행되었습니다.";
+        } else if (ratio >= 35) {
+            administrativeEvaluation = "<span style='color:#f59e0b; font-weight:bold;'>[보통]</span> 평이한 수준의 집행율이며 상습 구역 기동 순찰이 요구됩니다.";
+        } else {
+            administrativeEvaluation = "<span style='color:#ef4444; font-weight:bold;'>[관리 필요]</span> 민원 대비 단속률이 낮으므로 인력 배치 재고가 필요합니다.";
+        }
+
+        document.getElementById('selectedYearTitle').textContent = selectedYear;
+        document.getElementById('detailAnalysisContent').innerHTML = `
+            <p style="margin-bottom: 8px;">🎯 <strong>${selectedYear}년도 지표 진단:</strong></p>
+            <ul style="padding-left: 15px; display: flex; flex-direction: column; gap: 4px;">
+                <li>주요 발생 연령층: <span class="highlight">${ageLabels[maxAgeIndex]}</span> (${maxAgeValue.toLocaleString()}명 계측)</li>
+                <li>당해 연도 민원 대비 현장 단속 집행률: <span class="highlight">${ratio}%</span></li>
+                <li><strong>행정 역량 평가:</strong> ${administrativeEvaluation}</li>
+            </ul>
+        `;
+
+        const ctx = document.getElementById('agePieChart').getContext('2d');
+        if(agePieChartInstance) agePieChartInstance.destroy();
+
+        agePieChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ageLabels,
+                datasets: [{
+                    data: ageValues,
+                    backgroundColor: [
+                        '#ff6384', '#ff9f40', '#ffcd56', '#4bc0c0', '#36a2eb', '#9966ff', '#c9cbcf'
+                    ],
+                    borderColor: '#ffffff',
+                    borderWidth: 2.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: 2, 
+                plugins: {
+                    legend: { 
+                        position: 'right', 
+                        labels: { boxWidth: 14, font: { family: 'Pretendard', size: 12, weight: '700' } } 
+                    }
+                },
+                cutout: '50%'
+            }
+        });
+    }
+
+    // [핵심 보완 패치] 흰색 배경 주입 및 고해상도 하이라이트 다운로드 스크립트
+    function downloadChartAsPNG(chartId, fileName) {
+        let chartInstance = (chartId === 'trendChart') ? trendChartInstance : agePieChartInstance;
+        
+        if (!chartInstance) {
+            alert("다운로드할 차트 객체가 존재하지 않습니다.");
+            return;
+        }
+
+        // 1. 가상 캔버스를 메모리에 생성 (더 큰 해상도로 스케일링 설정)
+        const srcCanvas = chartInstance.canvas;
+        const targetCanvas = document.createElement('canvas');
+        const ctx = targetCanvas.getContext('2d');
+
+        // 해상도 향상을 위한 2배율 세팅
+        const scale = 2; 
+        targetCanvas.width = srcCanvas.width * scale;
+        targetCanvas.height = srcCanvas.height * scale;
+
+        // 2. 배경 채우기 (글씨가 투명 배경 뒤로 밀려 흐려지는 현상 완전 차단)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+
+        // 3. 메모리 상에서 해상도 스케일 업 후 안티앨리어싱 품질 강화 안착
+        ctx.scale(scale, scale);
+        ctx.drawImage(srcCanvas, 0, 0);
+
+        // 4. 고품질 base64 이미지 추출 후 다운로드 강제 트리거
+        const imageURI = targetCanvas.toDataURL('image/png', 1.0);
+        const link = document.createElement('a');
+        link.download = `${fileName}_${new Date().toISOString().slice(0,10)}.png`;
+        link.href = imageURI;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+
+</body>
+</html>

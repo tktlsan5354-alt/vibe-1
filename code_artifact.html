@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한여름 밤의 팀 가계부 v2.0 🌴</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS for Excel export capability -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Nanum+Gothic:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Nanum Gothic', sans-serif;
+            background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 50%, #fed7aa 100%);
+            min-height: 100vh;
+        }
+
+        .fancy-font {
+            font-family: 'Gaegu', sans-serif;
+        }
+
+        /* 수박 & 파스텔 비치 커스텀 스타일 */
+        .bg-pastel-sand { background-color: #fef3c7; } /* 모래사장 */
+        .bg-pastel-sea { background-color: #e0f2fe; } /* 바다 */
+        .bg-pastel-watermelon-red { background-color: #fecaca; } /* 수박 속 */
+        .bg-pastel-watermelon-green { background-color: #bbf7d0; } /* 수박 껍질 */
+        .text-pastel-red { color: #f87171; }
+        
+        /* 스크롤바 커스텀 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #fca5a5;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 text-slate-800 pb-24">
+
+    <!-- 메인 컨테이너 -->
+    <div class="max-w-6xl mx-auto">
+        
+        <!-- 헤더 영역: 여름 테마 오브제들 배치 -->
+        <header class="relative bg-white/80 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-xl border border-sky-100 mb-8 overflow-hidden">
+            <!-- 데코레이션 일러스트 요소 (SVG/Emoji) -->
+            <div class="absolute -right-4 -top-4 text-7xl opacity-20 select-none pointer-events-none rotate-12">🌴</div>
+            <div class="absolute right-12 bottom-2 text-5xl opacity-20 select-none pointer-events-none -rotate-12">🍉</div>
+            <div class="absolute left-4 top-2 text-4xl opacity-15 select-none pointer-events-none">🏖️</div>
+            <div class="absolute left-1/3 -top-6 text-6xl opacity-10 select-none pointer-events-none">☁️</div>
+
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+                <div class="text-center md:text-left">
+                    <div class="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold mb-2">
+                        <span>🍉 시원한 교육/분석/엑셀 기능 탑재 v2.0</span>
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold text-sky-900 fancy-font tracking-wide">
+                        🌴 썸머 팀 가계부 v2.0 🏖️
+                    </h1>
+                    <p class="text-slate-500 text-sm mt-1">교육비 카테고리 및 비주얼 주간 리포트, 원클릭 엑셀 다운로드를 경험해보세요!</p>
+                </div>
+                
+                <!-- 월 선택 및 목표 설정기 -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                    <!-- 연월 선택 -->
+                    <div class="bg-sky-50 rounded-2xl p-2 border border-sky-100 flex items-center justify-between">
+                        <button onclick="changeMonth(-1)" class="p-2 hover:bg-sky-200 rounded-xl transition">
+                            <i data-lucide="chevron-left" class="w-5 h-5 text-sky-700"></i>
+                        </button>
+                        <span id="currentYearMonth" class="font-bold text-lg text-sky-900 px-4 min-w-[100px] text-center">2026년 06월</span>
+                        <button onclick="changeMonth(1)" class="p-2 hover:bg-sky-200 rounded-xl transition">
+                            <i data-lucide="chevron-right" class="w-5 h-5 text-sky-700"></i>
+                        </button>
+                    </div>
+
+                    <!-- 엑셀 다운로드 버튼 -->
+                    <button onclick="exportToExcel()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-2xl shadow-lg shadow-emerald-200 transition flex items-center justify-center gap-2">
+                        <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                        <span>엑셀 다운로드</span>
+                    </button>
+
+                    <!-- 목표 설정 버턴 -->
+                    <button onclick="openTargetModal()" class="bg-red-400 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-2xl shadow-lg shadow-red-200 transition flex items-center justify-center gap-2">
+                        <i data-lucide="target" class="w-5 h-5"></i>
+                        <span>목표 예산 설정</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 목표 대비 현황 프로그레스 바 -->
+            <div class="mt-8 bg-sky-50/50 p-4 rounded-2xl border border-sky-100/50">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-slate-600">이번 달 총 지출:</span>
+                        <span id="headerTotalSpent" class="text-xl font-extrabold text-sky-950">0원</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-slate-500">목표 예산:</span>
+                        <span id="headerTargetBudget" class="text-sm font-bold text-rose-500">설정 없음</span>
+                    </div>
+                </div>
+                
+                <div class="w-full bg-slate-200 h-4 rounded-full overflow-hidden relative">
+                    <div id="budgetProgressBar" class="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                
+                <div id="budgetWarningAlert" class="hidden mt-3 p-3 bg-red-100 text-red-700 rounded-xl flex items-center gap-2 text-sm font-semibold border border-red-200 animate-pulse">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 flex-shrink-0"></i>
+                    <span>🚨 비상! 목표 지출 예산을 초과했습니다! 지출을 줄여야 합니다. 🍉</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 메인 콘텐츠 격자 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- 왼쪽: 대시보드 / 가계부 입력 / 팀원 관리 (5칸) -->
+            <div class="lg:col-span-5 flex flex-col gap-8">
+                
+                <!-- 팀원 관리 카드 -->
+                <section class="bg-white/90 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-sky-100 relative overflow-hidden">
+                    <div class="absolute -right-3 -bottom-3 text-5xl opacity-10 select-none">⛱️</div>
+                    <h2 class="text-lg font-bold text-sky-950 mb-4 flex items-center gap-2">
+                        <i data-lucide="users" class="text-sky-500"></i>
+                        <span>우리 팀 멤버 목록</span>
+                    </h2>
+                    
+                    <!-- 팀원 추가 폼 -->
+                    <div class="flex gap-2 mb-4">
+                        <input id="newMemberName" type="text" placeholder="새 팀원 이름" class="flex-1 px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-300 text-sm">
+                        <button onclick="addTeamMember()" class="bg-teal-400 hover:bg-teal-500 text-white font-bold px-4 py-2 rounded-xl transition text-sm flex items-center gap-1">
+                            <i data-lucide="plus" class="w-4 h-4"></i> 추가
+                        </button>
+                    </div>
+
+                    <!-- 팀원 목록 칩 형태 -->
+                    <div id="memberListContainer" class="flex flex-wrap gap-2 max-h-24 overflow-y-auto pr-1">
+                        <!-- 동적 생성 -->
+                    </div>
+                </section>
+
+                <!-- 지출 내역 입력 폼 카드 -->
+                <section class="bg-white/90 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-sky-100 relative">
+                    <h2 class="text-lg font-bold text-sky-950 mb-4 flex items-center gap-2">
+                        <i data-lucide="coins" class="text-emerald-500"></i>
+                        <span>새로운 여름 지출 기록</span>
+                    </h2>
+                    
+                    <form id="ledgerForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                        <!-- 날짜 선택 -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">지출 일자</label>
+                            <input id="formDate" type="date" required class="w-full px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-300 text-sm">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- 팀원 선택 -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">지출한 팀원</label>
+                                <select id="formMember" required class="w-full px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-300 text-sm">
+                                    <option value="">선택해주세요</option>
+                                    <!-- 동적 추가 -->
+                                </select>
+                            </div>
+                            <!-- 카테고리 선택 (교육 카테고리 포함) -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">카테고리</label>
+                                <select id="formCategory" required class="w-full px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-300 text-sm">
+                                    <option value="업무">💼 업무</option>
+                                    <option value="식비">🍉 식비</option>
+                                    <option value="교육">📚 교육</option>
+                                    <option value="출장">✈️ 출장</option>
+                                    <option value="기타">🏖️ 기타</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 금액 입력 -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">지출 금액 (원)</label>
+                            <div class="relative">
+                                <input id="formAmount" type="number" min="0" required placeholder="금액을 입력하세요" class="w-full pl-4 pr-10 py-2.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-300 text-sm font-bold text-slate-800">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">원</span>
+                            </div>
+                        </div>
+
+                        <!-- 내용 입력 -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">상세 내용 (메모)</label>
+                            <input id="formMemo" type="text" placeholder="예: 자바스크립트 강의 결제, 도서 구입 등" required class="w-full px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-300 text-sm">
+                        </div>
+
+                        <button type="submit" class="w-full bg-emerald-400 hover:bg-emerald-500 text-white font-bold py-3 rounded-2xl shadow-lg shadow-emerald-100 transition flex items-center justify-center gap-2">
+                            <i data-lucide="check" class="w-5 h-5"></i>
+                            <span>지출 내역 등록하기</span>
+                        </button>
+                    </form>
+                </section>
+
+                <!-- 통계 차트 카드 -->
+                <section class="bg-white/90 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-sky-100">
+                    <h2 class="text-lg font-bold text-sky-950 mb-4 flex items-center gap-2">
+                        <i data-lucide="pie-chart" class="text-amber-500"></i>
+                        <span>여름 지출 분석 대시보드</span>
+                    </h2>
+                    
+                    <div class="space-y-6">
+                        <!-- 카테고리별 분배 차트 (도넛 형태) -->
+                        <div>
+                            <span class="text-xs font-bold text-slate-500 block mb-2">카테고리별 지출 비율</span>
+                            <div class="relative h-48 w-full flex justify-center items-center">
+                                <canvas id="categoryChartCanvas"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- 주 단위 지출 트렌드 (꺾은선 차트) -->
+                        <div class="pt-4 border-t border-slate-100">
+                            <span class="text-xs font-bold text-slate-500 block mb-2">주간별 지출 트렌드</span>
+                            <div class="relative h-48 w-full flex justify-center items-center">
+                                <canvas id="weeklyChartCanvas"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- 팀원별 기여 바 -->
+                        <div class="pt-4 border-t border-slate-100">
+                            <span class="text-xs font-bold text-slate-500 block mb-2">팀원별 지출 합계</span>
+                            <div id="memberStatsContainer" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                <!-- 동적 생성 -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- 오른쪽: 달력 보기 & 당일 목록보기 (7칸) -->
+            <div class="lg:col-span-7 flex flex-col gap-8">
+                
+                <!-- 캘린더 영역 -->
+                <section class="bg-white/95 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-sky-100">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-sky-950 flex items-center gap-2">
+                            <i data-lucide="calendar" class="text-rose-400"></i>
+                            <span>여름 캘린더</span>
+                        </h2>
+                        <span class="text-xs text-rose-400 font-bold">날짜를 클릭하면 해당 날짜의 지출 상세를 볼 수 있어요! 🍉</span>
+                    </div>
+
+                    <!-- 달력 그리드 헤더 -->
+                    <div class="grid grid-cols-7 text-center text-xs font-bold text-slate-400 mb-2">
+                        <div class="text-rose-400">일</div>
+                        <div>월</div>
+                        <div>화</div>
+                        <div>수</div>
+                        <div>목</div>
+                        <div>금</div>
+                        <div class="text-sky-400">토</div>
+                    </div>
+
+                    <!-- 달력 본문 그리드 -->
+                    <div id="calendarGrid" class="grid grid-cols-7 gap-1 md:gap-2">
+                        <!-- 동적 날짜 셀이 채워짐 -->
+                    </div>
+                </section>
+
+                <!-- 선택 날짜 상세 지출 목록 -->
+                <section class="bg-white/95 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-sky-100 flex-1 flex flex-col">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+                        <h2 class="text-lg font-bold text-sky-950 flex items-center gap-2">
+                            <i data-lucide="receipt" class="text-indigo-400"></i>
+                            <span id="selectedDateTitle">0000년 00월 00일 지출 내역</span>
+                        </h2>
+                        <span id="selectedDateTotal" class="text-sm font-extrabold bg-sky-100 text-sky-800 px-3 py-1 rounded-full">총 0원</span>
+                    </div>
+
+                    <!-- 리스트 영역 -->
+                    <div class="flex-1 overflow-y-auto min-h-[250px] max-h-[350px] pr-1">
+                        <div id="noDataPlaceholder" class="flex flex-col items-center justify-center h-full text-slate-400 py-12">
+                            <span class="text-5xl mb-2">🏄‍♂️</span>
+                            <p class="text-sm">이 날짜에 기록된 지출 내역이 없습니다.</p>
+                        </div>
+
+                        <ul id="selectedDateList" class="space-y-3 hidden">
+                            <!-- 동적 항목 -->
+                        </ul>
+                    </div>
+                </section>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 팝업 모달: 목표 설정 -->
+    <div id="targetModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-sky-100 relative">
+            <h3 class="text-xl font-bold text-sky-950 mb-2 flex items-center gap-2">
+                <i data-lucide="target" class="text-rose-500"></i>
+                <span>이번 달 지출 한도 설정 🍉</span>
+            </h3>
+            <p class="text-slate-500 text-xs mb-4">지출이 목표액을 넘을 경우, 가계부 곳곳에 경고 메시지가 시원하게 쏟아집니다.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">한도 금액 (원)</label>
+                    <div class="relative">
+                        <input id="modalTargetAmount" type="number" min="0" placeholder="목표 예산 입력" class="w-full pl-4 pr-10 py-2.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-300 text-sm font-bold text-slate-800">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">원</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button onclick="closeTargetModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm transition">취소</button>
+                <button onclick="saveTargetBudget()" class="flex-1 bg-rose-400 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl text-sm transition">저장하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 알림 메시지 배너용 엘리먼트 -->
+    <div id="toastMessage" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white font-semibold py-3 px-6 rounded-2xl shadow-xl z-50 flex items-center gap-2 transition-all duration-300 translate-y-20 opacity-0 pointer-events-none">
+        <span id="toastText">알림 내용</span>
+    </div>
+
+    <!-- 푸터 바 -->
+    <footer class="text-center text-xs text-sky-900/60 mt-12 mb-6">
+        <p>© 2026 🌴 썸머 팀 가계부 v2.0. 시원하고 투명한 공용 지출 관리를 응원합니다! 🍉</p>
+    </footer>
+
+    <!-- 애플리케이션 로직 -->
+    <script>
+        // --- 1. 초기 데이터 구조 및 로컬스토리지 복구 ---
+        let teamMembers = ["짱구", "철수", "유리", "맹구"];
+        let expenseRecords = [
+            { id: "1", date: "2026-06-01", member: "짱구", category: "식비", amount: 15000, memo: "팀 점심 아이스크림" },
+            { id: "2", date: "2026-06-05", member: "철수", category: "업무", amount: 45000, memo: "복사용지 구입" },
+            { id: "3", date: "2026-06-08", member: "짱구", category: "교육", amount: 95000, memo: "여름 프로그래밍 세미나 신청" },
+            { id: "4", date: "2026-06-15", member: "유리", category: "출장", amount: 120000, memo: "지방 세미나 교통비" },
+            { id: "5", date: "2026-06-20", member: "맹구", category: "기타", amount: 30000, memo: "워크숍 간식비" },
+            { id: "6", date: "2026-06-22", member: "철수", category: "교육", amount: 55000, memo: "클라우드 서비스 가이드북 구입" }
+        ];
+        
+        // 연도별/월별 목표 예산 수치 저장소 (예: "2026-06": 500000)
+        let monthlyBudgets = {
+            "2026-06": 400000
+        };
+
+        // 전역 상태 변수
+        let currentYear = 2026;
+        let currentMonth = 5; // 0-based index (5 = 6월)
+        let selectedDateString = ""; // 포맷: "YYYY-MM-DD"
+        
+        // 차트 인스턴스 전역 저장소 (매번 지우고 새로 그리기 위함)
+        let categoryChartInstance = null;
+        let weeklyChartInstance = null;
+
+        // 로컬스토리지 로드
+        function loadStorage() {
+            const savedMembers = localStorage.getItem("summer_team_members");
+            const savedRecords = localStorage.getItem("summer_team_records");
+            const savedBudgets = localStorage.getItem("summer_team_budgets");
+
+            if (savedMembers) teamMembers = JSON.parse(savedMembers);
+            if (savedRecords) expenseRecords = JSON.parse(savedRecords);
+            if (savedBudgets) monthlyBudgets = JSON.parse(savedBudgets);
+        }
+
+        // 로컬스토리지 저장
+        function saveStorage() {
+            localStorage.setItem("summer_team_members", JSON.stringify(teamMembers));
+            localStorage.setItem("summer_team_records", JSON.stringify(expenseRecords));
+            localStorage.setItem("summer_team_budgets", JSON.stringify(monthlyBudgets));
+        }
+
+        // --- 2. 라이프사이클 및 화면 초기화 ---
+        window.addEventListener("DOMContentLoaded", () => {
+            loadStorage();
+            lucide.createIcons();
+            
+            // 오늘 날짜 구하기
+            const today = new Date();
+            currentYear = today.getFullYear();
+            currentMonth = today.getMonth();
+            
+            // 기본 선택일을 오늘로 설정
+            const yearStr = currentYear;
+            const monthStr = String(currentMonth + 1).padStart(2, '0');
+            const dateStr = String(today.getDate()).padStart(2, '0');
+            selectedDateString = `${yearStr}-${monthStr}-${dateStr}`;
+
+            // 기본 폼 날짜 입력창에 오늘 날짜 채우기
+            document.getElementById("formDate").value = selectedDateString;
+
+            renderAll();
+        });
+
+        // 종합 렌더링 호출 컨트롤러
+        function renderAll() {
+            renderHeaderAndBudget();
+            renderTeamMembers();
+            renderCalendar();
+            renderSelectedDateDetails();
+            renderStatsCharts();
+            updateMemberSelectOptions();
+            lucide.createIcons();
+        }
+
+        // --- 3. 알림 토스트 유틸리티 ---
+        function showToast(message) {
+            const toast = document.getElementById("toastMessage");
+            const text = document.getElementById("toastText");
+            text.textContent = message;
+            
+            toast.classList.remove("translate-y-20", "opacity-0", "pointer-events-none");
+            toast.classList.add("translate-y-0", "opacity-100");
+            
+            setTimeout(() => {
+                toast.classList.remove("translate-y-0", "opacity-100");
+                toast.classList.add("translate-y-20", "opacity-0", "pointer-events-none");
+            }, 3000);
+        }
+
+        // --- 4. 예산 & 상단 헤더 관련 제어 ---
+        function getBudgetYearMonthKey() {
+            const m = String(currentMonth + 1).padStart(2, '0');
+            return `${currentYear}-${m}`;
+        }
+
+        function renderHeaderAndBudget() {
+            const key = getBudgetYearMonthKey();
+            const targetBudget = monthlyBudgets[key] || 0;
+            
+            // 현재 활성화된 년월 지출의 합 계산
+            const monthlyTotal = expenseRecords
+                .filter(rec => {
+                    const recDate = new Date(rec.date);
+                    return recDate.getFullYear() === currentYear && recDate.getMonth() === currentMonth;
+                })
+                .reduce((sum, rec) => sum + rec.amount, 0);
+
+            // 헤더 정보 업데이트
+            document.getElementById("currentYearMonth").textContent = `${currentYear}년 ${String(currentMonth + 1).padStart(2, '0')}월`;
+            document.getElementById("headerTotalSpent").textContent = monthlyTotal.toLocaleString() + " 원";
+            
+            const budgetLabel = document.getElementById("headerTargetBudget");
+            const progressBar = document.getElementById("budgetProgressBar");
+            const warningAlert = document.getElementById("budgetWarningAlert");
+
+            if (targetBudget > 0) {
+                budgetLabel.textContent = targetBudget.toLocaleString() + " 원";
+                const ratio = Math.min((monthlyTotal / targetBudget) * 100, 100);
+                progressBar.style.width = ratio + "%";
+
+                // 게이지 바 색상 변경 (경고 수준에 대응)
+                if (ratio >= 100) {
+                    progressBar.className = "bg-gradient-to-r from-red-400 to-red-500 h-full transition-all duration-500";
+                    warningAlert.classList.remove("hidden");
+                } else if (ratio >= 80) {
+                    progressBar.className = "bg-gradient-to-r from-orange-400 to-orange-500 h-full transition-all duration-500";
+                    warningAlert.classList.add("hidden");
+                } else {
+                    progressBar.className = "bg-gradient-to-r from-emerald-400 to-emerald-500 h-full transition-all duration-500";
+                    warningAlert.classList.add("hidden");
+                }
+            } else {
+                budgetLabel.textContent = "설정 없음";
+                progressBar.style.width = "0%";
+                progressBar.className = "bg-gradient-to-r from-slate-400 to-slate-500 h-full transition-all duration-500";
+                warningAlert.classList.add("hidden");
+            }
+        }
+
+        // 월 전환 기능
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            } else if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            
+            // 날짜 선택 기준도 변경된 연월의 1일로 기본 이동시킴
+            const mStr = String(currentMonth + 1).padStart(2, '0');
+            selectedDateString = `${currentYear}-${mStr}-01`;
+            document.getElementById("formDate").value = selectedDateString;
+
+            renderAll();
+        }
+
+        // 목표 팝업 제어
+        function openTargetModal() {
+            const key = getBudgetYearMonthKey();
+            const currentVal = monthlyBudgets[key] || "";
+            document.getElementById("modalTargetAmount").value = currentVal;
+            document.getElementById("targetModal").classList.remove("hidden");
+        }
+
+        function closeTargetModal() {
+            document.getElementById("targetModal").classList.add("hidden");
+        }
+
+        function saveTargetBudget() {
+            const amountInput = document.getElementById("modalTargetAmount");
+            const val = parseInt(amountInput.value) || 0;
+            const key = getBudgetYearMonthKey();
+
+            if (val <= 0) {
+                delete monthlyBudgets[key];
+                showToast("목표 예산 설정을 해제했습니다.");
+            } else {
+                monthlyBudgets[key] = val;
+                showToast(`${currentMonth + 1}월 지출 한도가 ${val.toLocaleString()}원으로 설정되었습니다.`);
+            }
+
+            saveStorage();
+            closeTargetModal();
+            renderAll();
+        }
+
+
+        // --- 5. 팀원 관리 비즈니스 로직 ---
+        function renderTeamMembers() {
+            const container = document.getElementById("memberListContainer");
+            container.innerHTML = "";
+
+            if (teamMembers.length === 0) {
+                container.innerHTML = `<span class="text-xs text-slate-400 py-1">등록된 멤버가 없습니다. 추가해보세요! 🏄‍♂️</span>`;
+                return;
+            }
+
+            teamMembers.forEach(member => {
+                const badge = document.createElement("div");
+                badge.className = "inline-flex items-center gap-1.5 bg-sky-100 hover:bg-sky-200 text-sky-800 font-semibold px-3 py-1.5 rounded-xl text-xs transition";
+                badge.innerHTML = `
+                    <span>${member}</span>
+                    <button onclick="removeTeamMember('${member}')" class="text-sky-600 hover:text-red-500 font-bold ml-1">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                `;
+                container.appendChild(badge);
+            });
+        }
+
+        function addTeamMember() {
+            const input = document.getElementById("newMemberName");
+            const name = input.value.trim();
+
+            if (!name) {
+                showToast("이름을 제대로 입력해주세요!");
+                return;
+            }
+            if (teamMembers.includes(name)) {
+                showToast("이미 등록된 멤버입니다.");
+                return;
+            }
+
+            teamMembers.push(name);
+            input.value = "";
+            saveStorage();
+            renderAll();
+            showToast(`멤버 '${name}'님을 추가했습니다. 👋`);
+        }
+
+        function removeTeamMember(name) {
+            // 해당 팀원의 데이터가 있는 경우 경고/안내
+            const hasData = expenseRecords.some(r => r.member === name);
+            const confirmMsg = hasData 
+                ? `'${name}'님의 이전 지출 기록은 보존되지만, 목록에서는 더이상 새로 지출을 등록할 수 없습니다. 정말 멤버에서 제외할까요?` 
+                : `'${name}'님을 멤버 목록에서 제외할까요?`;
+            
+            if (confirm(confirmMsg)) {
+                teamMembers = teamMembers.filter(m => m !== name);
+                saveStorage();
+                renderAll();
+                showToast(`멤버 '${name}'님을 제외했습니다.`);
+            }
+        }
+
+        // 지출 양식 선택상자 업데이트
+        function updateMemberSelectOptions() {
+            const select = document.getElementById("formMember");
+            const currentSelected = select.value;
+            
+            select.innerHTML = `<option value="">선택해주세요</option>`;
+            teamMembers.forEach(m => {
+                const opt = document.createElement("option");
+                opt.value = m;
+                opt.textContent = m;
+                select.appendChild(opt);
+            });
+
+            // 이전 선택값 복구 시도
+            if (teamMembers.includes(currentSelected)) {
+                select.value = currentSelected;
+            }
+        }
+
+
+        // --- 6. 캘린더 생성 및 조작 기능 ---
+        function renderCalendar() {
+            const grid = document.getElementById("calendarGrid");
+            grid.innerHTML = "";
+
+            // 달력의 시작 요일과 총 일수 확보
+            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+            const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+            // 이전 달의 끝날 수 구하기 (빈 슬롯 채우기용)
+            const prevTotalDays = new Date(currentYear, currentMonth, 0).getDate();
+
+            // 이번 달에 속하는 기록만 필터링
+            const monthlyFiltered = expenseRecords.filter(rec => {
+                const rDate = new Date(rec.date);
+                return rDate.getFullYear() === currentYear && rDate.getMonth() === currentMonth;
+            });
+
+            // 날짜별 합계 그룹화 구하기
+            const dailySumMap = {};
+            monthlyFiltered.forEach(rec => {
+                const dayNum = parseInt(rec.date.split("-")[2], 10);
+                dailySumMap[dayNum] = (dailySumMap[dayNum] || 0) + rec.amount;
+            });
+
+            // 1. 이전 달 날짜 빈 칸 그리기
+            for (let i = firstDayIndex; i > 0; i--) {
+                const dayVal = prevTotalDays - i + 1;
+                const cell = document.createElement("div");
+                cell.className = "bg-slate-100/40 text-slate-300 rounded-2xl p-2 min-h-[64px] text-left select-none text-xs";
+                cell.textContent = dayVal;
+                grid.appendChild(cell);
+            }
+
+            // 2. 이번 달 날짜 그리기
+            for (let day = 1; day <= totalDays; day++) {
+                const dayStr = String(day).padStart(2, '0');
+                const mStr = String(currentMonth + 1).padStart(2, '0');
+                const fullDateStr = `${currentYear}-${mStr}-${dayStr}`;
+                const dailySum = dailySumMap[day] || 0;
+
+                const isSelected = selectedDateString === fullDateStr;
+
+                const cell = document.createElement("button");
+                cell.type = "button";
+                cell.onclick = () => selectCalendarDate(fullDateStr);
+                
+                // 일요일/토요일 스타일 분기
+                const dayOfWeek = new Date(currentYear, currentMonth, day).getDay();
+                let dayColorClass = "text-slate-700";
+                if (dayOfWeek === 0) dayColorClass = "text-red-400 font-semibold";
+                if (dayOfWeek === 6) dayColorClass = "text-sky-500 font-semibold";
+
+                // 기본 배경색 설정
+                let bgClass = "bg-pastel-sea/30 hover:bg-emerald-100/50";
+                let borderClass = "border border-sky-100/60";
+
+                if (isSelected) {
+                    bgClass = "bg-amber-100";
+                    borderClass = "border-2 border-amber-400 shadow-md scale-95 z-10";
+                } else if (dailySum > 0) {
+                    bgClass = "bg-emerald-50";
+                    borderClass = "border border-emerald-200/80";
+                }
+
+                cell.className = `${bgClass} ${borderClass} rounded-2xl p-2 min-h-[72px] flex flex-col justify-between transition-all text-left relative overflow-hidden group`;
+                
+                // 수박 씨 처럼 꾸며주기 (지출이 있는 날 특별 효과)
+                let seedDecoration = "";
+                if (dailySum > 0) {
+                    seedDecoration = `<span class="absolute -right-1 -bottom-1 text-base opacity-40 group-hover:scale-125 transition">🍉</span>`;
+                }
+
+                cell.innerHTML = `
+                    <div class="flex justify-between items-center w-full">
+                        <span class="text-xs font-bold ${dayColorClass}">${day}</span>
+                        ${isSelected ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>' : ''}
+                    </div>
+                    <div class="text-[10px] md:text-xs font-extrabold text-emerald-700 truncate w-full text-right mt-1 relative z-10">
+                        ${dailySum > 0 ? `${(dailySum / 1000).toFixed(0)}K` : ""}
+                    </div>
+                    ${seedDecoration}
+                `;
+
+                grid.appendChild(cell);
+            }
+
+            // 3. 다음 달 날짜 빈 칸 채우기 (7열 배수 맞추기)
+            const totalCellsSoFar = firstDayIndex + totalDays;
+            const remainingCells = (7 - (totalCellsSoFar % 7)) % 7;
+            for (let i = 1; i <= remainingCells; i++) {
+                const cell = document.createElement("div");
+                cell.className = "bg-slate-100/40 text-slate-300 rounded-2xl p-2 min-h-[64px] text-left select-none text-xs";
+                cell.textContent = i;
+                grid.appendChild(cell);
+            }
+        }
+
+        // 날짜 클릭 핸들러
+        function selectCalendarDate(fullDateStr) {
+            selectedDateString = fullDateStr;
+            document.getElementById("formDate").value = fullDateStr;
+            renderAll();
+        }
+
+
+        // --- 7. 상세 지출 내역 보기 및 삭제 ---
+        function renderSelectedDateDetails() {
+            const listContainer = document.getElementById("selectedDateList");
+            const placeholder = document.getElementById("noDataPlaceholder");
+            const totalLabel = document.getElementById("selectedDateTotal");
+            
+            // 타이틀 날짜 이쁘게 포맷
+            const dateParts = selectedDateString.split("-");
+            document.getElementById("selectedDateTitle").textContent = `${dateParts[0]}년 ${dateParts[1]}월 ${dateParts[2]}일 지출 내역`;
+
+            // 해당 날짜 지출 필터링
+            const targetRecords = expenseRecords.filter(rec => rec.date === selectedDateString);
+
+            // 해당 날짜 지출 총합 구하기
+            const totalAmt = targetRecords.reduce((sum, rec) => sum + rec.amount, 0);
+            totalLabel.textContent = `총 ${totalAmt.toLocaleString()}원`;
+
+            listContainer.innerHTML = "";
+
+            if (targetRecords.length === 0) {
+                placeholder.classList.remove("hidden");
+                listContainer.classList.add("hidden");
+                return;
+            }
+
+            placeholder.classList.add("hidden");
+            listContainer.classList.remove("hidden");
+
+            targetRecords.forEach(rec => {
+                const item = document.createElement("li");
+                
+                // 카테고리별 디자인 칩 설정
+                let catBadgeClass = "bg-pastel-watermelon-green text-emerald-800";
+                let emoji = "🌴";
+                if (rec.category === "업무") { catBadgeClass = "bg-sky-100 text-sky-800"; emoji = "💼"; }
+                if (rec.category === "식비") { catBadgeClass = "bg-rose-100 text-rose-800"; emoji = "🍉"; }
+                if (rec.category === "교육") { catBadgeClass = "bg-emerald-100 text-emerald-800"; emoji = "📚"; }
+                if (rec.category === "출장") { catBadgeClass = "bg-indigo-100 text-indigo-800"; emoji = "✈️"; }
+                if (rec.category === "기타") { catBadgeClass = "bg-amber-100 text-amber-800"; emoji = "🏖️"; }
+
+                item.className = "bg-slate-50/80 hover:bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center justify-between gap-4 transition shadow-sm hover:shadow";
+                item.innerHTML = `
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center bg-white border border-slate-100 shadow-inner flex-shrink-0 text-lg">
+                            ${emoji}
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 mb-0.5">
+                                <span class="font-bold text-slate-800 text-sm">${rec.member}</span>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ${catBadgeClass}">${rec.category}</span>
+                            </div>
+                            <p class="text-xs text-slate-500 truncate" title="${rec.memo}">${rec.memo}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-extrabold text-sm text-slate-800 whitespace-nowrap">${rec.amount.toLocaleString()}원</span>
+                        <button onclick="deleteRecord('${rec.id}')" class="text-slate-400 hover:text-red-500 p-1.5 hover:bg-slate-100 rounded-lg transition" title="지출 삭제">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+
+            lucide.createIcons();
+        }
+
+        // 지출 레코드 삭제
+        function deleteRecord(id) {
+            if (confirm("정말로 이 지출 내역을 삭제하시겠습니까?")) {
+                expenseRecords = expenseRecords.filter(r => r.id !== id);
+                saveStorage();
+                renderAll();
+                showToast("선택한 지출 내역을 삭제했습니다.");
+            }
+        }
+
+
+        // --- 8. 신규 지출 등록 처리 ---
+        function handleFormSubmit(event) {
+            event.preventDefault();
+
+            const dateVal = document.getElementById("formDate").value;
+            const memberVal = document.getElementById("formMember").value;
+            const categoryVal = document.getElementById("formCategory").value;
+            const amountVal = parseInt(document.getElementById("formAmount").value) || 0;
+            const memoVal = document.getElementById("formMemo").value.trim();
+
+            if (!memberVal) {
+                showToast("지출한 팀원을 선택해주세요!");
+                return;
+            }
+            if (amountVal <= 0) {
+                showToast("지출 금액을 올바르게 입력해주세요!");
+                return;
+            }
+            if (!memoVal) {
+                showToast("상세 메모 내용을 입력해주세요!");
+                return;
+            }
+
+            const newRecord = {
+                id: Date.now().toString(),
+                date: dateVal,
+                member: memberVal,
+                category: categoryVal,
+                amount: amountVal,
+                memo: memoVal
+            };
+
+            expenseRecords.push(newRecord);
+            saveStorage();
+
+            // 사용자가 입력한 날짜로 뷰를 자동 매칭
+            const targetDate = new Date(dateVal);
+            currentYear = targetDate.getFullYear();
+            currentMonth = targetDate.getMonth();
+            selectedDateString = dateVal;
+
+            // 폼 필드 부분 초기화 (날짜, 팀원은 유지하여 반복 입력을 배려함)
+            document.getElementById("formAmount").value = "";
+            document.getElementById("formMemo").value = "";
+
+            renderAll();
+            showToast("성공적으로 지출이 기록되었습니다! 🏄‍♂️");
+        }
+
+
+        // --- 9. 대시보드 통계 및 Chart.js 그래픽 차트 구성 ---
+        function renderStatsCharts() {
+            // 이번 달에 속하는 기록만 추출
+            const monthlyFiltered = expenseRecords.filter(rec => {
+                const rDate = new Date(rec.date);
+                return rDate.getFullYear() === currentYear && rDate.getMonth() === currentMonth;
+            });
+
+            const currentMonthTotal = monthlyFiltered.reduce((sum, rec) => sum + rec.amount, 0);
+
+            // [1] 카테고리별 합산 구하기
+            const catSums = { "업무": 0, "식비": 0, "교육": 0, "출장": 0, "기타": 0 };
+            monthlyFiltered.forEach(rec => {
+                if (catSums.hasOwnProperty(rec.category)) {
+                    catSums[rec.category] += rec.amount;
+                }
+            });
+
+            // Chart.js를 이용한 카테고리 도넛 차트 렌더링
+            const catCtx = document.getElementById('categoryChartCanvas').getContext('2d');
+            
+            // 기존 차트 인스턴스 파괴
+            if (categoryChartInstance) {
+                categoryChartInstance.destroy();
+            }
+
+            categoryChartInstance = new Chart(catCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(catSums),
+                    datasets: [{
+                        data: Object.values(catSums),
+                        backgroundColor: [
+                            '#38bdf8', // 업무: 파랑
+                            '#f87171', // 식비: 빨강
+                            '#34d399', // 교육: 녹색
+                            '#818cf8', // 출장: 보라
+                            '#fbbf24'  // 기타: 노랑
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 11, family: 'Nanum Gothic' },
+                                boxWidth: 12
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed || 0;
+                                    const percent = currentMonthTotal > 0 ? ((value / currentMonthTotal) * 100).toFixed(1) : 0;
+                                    return ` ${context.label}: ${value.toLocaleString()}원 (${percent}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // [2] 주간별 통계 산출 (1일~7일: 1주, 8일~14일: 2주, 15일~21일: 3주, 22일~28일: 4주, 29일~: 5주)
+            const weeklySums = { "1주차": 0, "2주차": 0, "3주차": 0, "4주차": 0, "5주차": 0 };
+            
+            monthlyFiltered.forEach(rec => {
+                const day = parseInt(rec.date.split("-")[2], 10);
+                if (day <= 7) weeklySums["1주차"] += rec.amount;
+                else if (day <= 14) weeklySums["2주차"] += rec.amount;
+                else if (day <= 21) weeklySums["3주차"] += rec.amount;
+                else if (day <= 28) weeklySums["4주차"] += rec.amount;
+                else weeklySums["5주차"] += rec.amount;
+            });
+
+            const weeklyCtx = document.getElementById('weeklyChartCanvas').getContext('2d');
+            
+            // 기존 차트 인스턴스 파괴
+            if (weeklyChartInstance) {
+                weeklyChartInstance.destroy();
+            }
+
+            weeklyChartInstance = new Chart(weeklyCtx, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(weeklySums),
+                    datasets: [{
+                        label: '주간 소비량',
+                        data: Object.values(weeklySums),
+                        fill: true,
+                        backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                        borderColor: '#38bdf8',
+                        tension: 0.3,
+                        pointBackgroundColor: '#0284c7',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: { family: 'Nanum Gothic', size: 10 },
+                                callback: function(value) {
+                                    return (value / 10000) + '만';
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: { font: { family: 'Nanum Gothic', size: 11 } }
+                        }
+                    }
+                }
+            });
+
+            // [3] 팀원별 지출 통계 생성
+            const memberSums = {};
+            // 현재 활성화된 팀원 목록 기준 사전 확보
+            teamMembers.forEach(m => memberSums[m] = 0);
+            
+            // 레코드 집계 (목록에 없는 기존 멤버 지출 내역도 유실 방지 위해 합산)
+            monthlyFiltered.forEach(rec => {
+                if (!memberSums.hasOwnProperty(rec.member)) {
+                    memberSums[rec.member] = 0;
+                }
+                memberSums[rec.member] += rec.amount;
+            });
+
+            const memberContainer = document.getElementById("memberStatsContainer");
+            memberContainer.innerHTML = "";
+
+            const sortedMembers = Object.entries(memberSums).sort((a, b) => b[1] - a[1]);
+            const maxMemberExpense = sortedMembers.length > 0 ? Math.max(...sortedMembers.map(item => item[1])) : 0;
+
+            if (sortedMembers.length === 0) {
+                memberContainer.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">이번 달 지출 내역이 비어있습니다.</p>`;
+                return;
+            }
+
+            sortedMembers.forEach(([member, sum]) => {
+                const ratio = maxMemberExpense > 0 ? (sum / maxMemberExpense) * 100 : 0;
+                const row = document.createElement("div");
+                row.className = "text-xs";
+                row.innerHTML = `
+                    <div class="flex justify-between items-center mb-1 text-slate-600">
+                        <span class="font-bold">${member}</span>
+                        <span class="font-extrabold text-slate-800">${sum.toLocaleString()}원</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div class="bg-teal-300 h-full transition-all duration-500" style="width: ${ratio}%"></div>
+                    </div>
+                `;
+                memberContainer.appendChild(row);
+            });
+        }
+
+        // --- 10. 엑셀(XLSX) 다운로드 기능 구현 ---
+        function exportToExcel() {
+            if (expenseRecords.length === 0) {
+                showToast("다운로드할 가계부 내역이 하나도 없습니다! 🏝️");
+                return;
+            }
+
+            // 엑셀에 내보낼 데이터 2차원 배열 포맷팅 (정렬: 날짜 기준 내림차순)
+            const sortedRecords = [...expenseRecords].sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            const excelRows = [
+                ["등록 ID", "지출 일자", "지출 팀원", "지출 카테고리", "지출 금액(원)", "상세 설명(메모)"]
+            ];
+
+            sortedRecords.forEach(rec => {
+                excelRows.push([
+                    rec.id,
+                    rec.date,
+                    rec.member,
+                    rec.category,
+                    rec.amount,
+                    rec.memo
+                ]);
+            });
+
+            // SheetJS를 사용하여 워크북 구성
+            const worksheet = XLSX.utils.aoa_to_sheet(excelRows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "여름 가계부 지출대장");
+
+            // 컬럼 너비 스타일 자동 조절 가이드 지정
+            worksheet['!cols'] = [
+                { wch: 15 }, // ID
+                { wch: 15 }, // 일자
+                { wch: 12 }, // 팀원
+                { wch: 15 }, // 카테고리
+                { wch: 15 }, // 금액
+                { wch: 35 }  // 메모
+            ];
+
+            // 엑셀 파일 다운로드 실행
+            const filename = `썸머_팀_가계부_지출대장_${getBudgetYearMonthKey()}.xlsx`;
+            XLSX.writeFile(workbook, filename);
+            showToast("엑셀 파일(.xlsx)이 안전하게 다운로드되었습니다! 🍉");
+        }
+    </script>
+</body>
+</html>
